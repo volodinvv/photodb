@@ -39,6 +39,9 @@ public class App {
 
         @Parameter(names = "-dest")
         private String dest = ".";
+
+        @Parameter(names = "-source")
+        private String source = ".";
     }
 
     private static final Args args = new Args();
@@ -94,9 +97,8 @@ public class App {
     }
 
     private static void scan() {
-        try (Connection conn = getConnection();
-             DirectoryStream<Path> stream = Files.newDirectoryStream(Path.of("D:\\Private\\PhotoDB\\Фотки"))) {
-            processDir(conn, Path.of("D:\\Private\\PhotoDB\\Фотки"));
+        try (Connection conn = getConnection()) {
+            processDir(conn, Path.of(App.args.source));
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -111,6 +113,7 @@ public class App {
                     dirModel = Optional.of(metadata.getFirstDirectoryOfType(ExifIFD0Directory.class).getString(0x0110));
                     break;
                 } catch (Exception e) {
+                    //ignore
                 }
             }
         }
@@ -125,8 +128,8 @@ public class App {
 
                 System.out.println(entry.toFile());
 
-                Date createDate = null;
-                String model = null;
+                Date createDate;
+                String model;
 
                 if (entry.toFile().getName().endsWith("mp4")) {
                     MovieBox moov = new IsoFile(entry.toFile()).getMovieBox();
@@ -176,11 +179,6 @@ public class App {
     }
 
     private static Connection getConnection() throws SQLException {
-        Connection conn = null;
-
-        String url = "jdbc:sqlite:D:/Private/PhotoDB/db/photodb";
-        // create a connection to the database
-        conn = DriverManager.getConnection(url);
-        return conn;
+        return DriverManager.getConnection("jdbc:sqlite:D:/Private/PhotoDB/db/photodb");
     }
 }
