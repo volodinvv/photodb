@@ -24,10 +24,8 @@ import java.util.Date;
  */
 public class PhotoDB {
 
-
-    private static Map<String, String> EQUIPMENT_MAP = Map.of("Canon PowerShot SX230 HS", "Canon", "SM-A520F", "MobileA5");
-    private static SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-    ;
+    private static final Map<String, String> EQUIPMENT_MAP = Map.of("Canon PowerShot SX230 HS", "Canon", "SM-A520F", "MobileA5");
+    private static final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     private static class Args {
         @Parameter(names = "-cmd")
@@ -128,7 +126,7 @@ public class PhotoDB {
         }
     }
 
-    private static void processDir(Connection conn, Path path) throws ImageProcessingException, IOException, NoSuchAlgorithmException, SQLException {
+    private static void processDir(Connection conn, Path path) throws IOException, NoSuchAlgorithmException, SQLException {
         Optional<String> dirModel = Optional.empty();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
             for (Path entry : stream) {
@@ -156,7 +154,7 @@ public class PhotoDB {
         }
     }
 
-    private static Metadata readMetadata(Optional<String> dirModel, Path entry) throws IOException, ImageProcessingException {
+    private static Metadata readMetadata(Optional<String> dirModel, Path entry) {
         Metadata meta = new Metadata();
         try {
             if (entry.toFile().getName().endsWith("mp4")) {
