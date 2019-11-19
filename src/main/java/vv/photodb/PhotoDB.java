@@ -3,21 +3,24 @@ package vv.photodb;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.drew.imaging.ImageMetadataReader;
-import com.drew.imaging.ImageProcessingException;
+import com.drew.metadata.avi.AviDirectory;
 import com.drew.metadata.exif.ExifIFD0Directory;
 import com.drew.metadata.exif.ExifSubIFDDirectory;
-import org.mp4parser.IsoFile;
-import org.mp4parser.boxes.iso14496.part12.MovieBox;
+import com.drew.metadata.mov.QuickTimeDirectory;
+import com.drew.metadata.mov.metadata.QuickTimeMetadataDirectory;
+import com.drew.metadata.mp4.Mp4Directory;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.*;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
 import java.security.NoSuchAlgorithmException;
 import java.sql.*;
 import java.text.SimpleDateFormat;
-import java.util.*;
 import java.util.Date;
+import java.util.*;
 
 /**
  * Hello world!
@@ -25,7 +28,18 @@ import java.util.Date;
 public class PhotoDB {
 
     private static final Map<String, String> EQUIPMENT_MAP = Map.of("Canon PowerShot SX230 HS", "Canon", "SM-A520F", "MobileA5");
-    private static final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    private static final SimpleDateFormat formatter;
+    private static final Set<Object> SKIP_EXT = new HashSet<>();
+
+    static {
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+        formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        SKIP_EXT.add("index");
+        SKIP_EXT.add("txt");
+        SKIP_EXT.add("ini");
+        SKIP_EXT.add("info");
+        SKIP_EXT.add("db");
+    }
 
     private static class Args {
         @Parameter(names = "-cmd")
@@ -82,7 +96,7 @@ public class PhotoDB {
             while (resultSet.next()) {
                 String path = resultSet.getString("path");
                 String sourceMD5 = resultSet.getString("md5");
-                Metadata metadata = readMetadata(Optional.empty(), Path.of(path));
+                Metadata metadata = readMetadata(Path.of(path), null);
                 save(conn, new File(path), metadata.createDate, sourceMD5, metadata.equipment);
             }
         } catch (Exception e) {
@@ -127,18 +141,8 @@ public class PhotoDB {
     }
 
     private static void processDir(Connection conn, Path path) throws IOException, NoSuchAlgorithmException, SQLException {
-        Optional<String> dirModel = Optional.empty();
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
-            for (Path entry : stream) {
-                try {
-                    com.drew.metadata.Metadata metadata = ImageMetadataReader.readMetadata(entry.toFile());
-                    dirModel = Optional.of(metadata.getFirstDirectoryOfType(ExifIFD0Directory.class).getString(0x0110));
-                    break;
-                } catch (Exception e) {
-                    //ignore
-                }
-            }
-        }
+
+        String defaultEquipment = getDeafultEquipment(path);
 
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
             for (Path entry : stream) {
@@ -147,49 +151,98 @@ public class PhotoDB {
                     continue;
                 }
                 System.out.println(entry.toFile());
-
-                Metadata metadata = readMetadata(dirModel, entry);
-                save(conn, entry.toFile(), metadata.createDate, MD5Util.MD5(entry), metadata.equipment);
+                String ext = getFileExtension(entry.toString());
+                if (ext != null && !SKIP_EXT.contains(ext)) {
+                    Metadata metadata = readMetadata(entry, defaultEquipment);
+                    save(conn, entry.toFile(), metadata.createDate, MD5Util.MD5(entry), metadata.equipment);
+                }
             }
         }
     }
 
-    private static Metadata readMetadata(Optional<String> dirModel, Path entry) {
-        Metadata meta = new Metadata();
-        try {
-            if (entry.toFile().getName().endsWith("mp4")) {
-                MovieBox moov = new IsoFile(entry.toFile()).getMovieBox();
-                // for (Box b : moov.getBoxes()) {
-                //System.out.println(b);
-                //}
-                meta.createDate = moov.getMovieHeaderBox().getCreationTime();
-                meta.equipment = dirModel.orElse("MP4");
-            } else {
-                com.drew.metadata.Metadata metadata = ImageMetadataReader.readMetadata(entry.toFile());
-                //metadata.getDirectories().forEach(d -> {
-                // System.out.println(d.getName() + " " + d.getClass());
-                // d.getTags().forEach(t -> System.out.println("\t" + t.getTagTypeHex() + " : " + t.toString()));
-                //});
-
-                meta.createDate = metadata.getFirstDirectoryOfType(ExifSubIFDDirectory.class).getDateOriginal();
-                meta.equipment = dirModel.orElse(metadata.getFirstDirectoryOfType(ExifIFD0Directory.class).getString(0x0110));
+    private static String getDeafultEquipment(Path path) throws IOException {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
+            for (Path entry : stream) {
+                String ext = getFileExtension(entry.toString());
+                if (ext != null && !SKIP_EXT.contains(ext)) {
+                    try {
+                        return ImageMetadataReader.readMetadata(entry.toFile()).getFirstDirectoryOfType(ExifIFD0Directory.class).getString(0x0110);
+                    } catch (Exception e) {
+                        //ignore
+                    }
+                }
             }
+        }
+        return null;
+    }
+
+    private static String getFileExtension(String entry) {
+        int idx = entry.lastIndexOf('.');
+        if (idx > 0) {
+            return entry.substring(idx + 1).toLowerCase();
+        }
+        return null;
+    }
+
+    private static Metadata readMetadata(Path entry, String defaultEquipment) {
+        Metadata meta = new Metadata(defaultEquipment);
+        try {
+
+            com.drew.metadata.Metadata metadata = ImageMetadataReader.readMetadata(entry.toFile());
+            //// if (entry.toFile().getName().endsWith("MOV")) {
+            metadata.getDirectories().forEach(d -> {
+                System.out.println(d.getName() + " " + d.getClass());
+                d.getTags().forEach(t -> System.out.println("\t" + t.getTagTypeHex() + " : " + t.toString()));
+            });
+            //   }
+
+
+            if (metadata.containsDirectoryOfType(Mp4Directory.class)) {
+                meta.createDate = metadata.getFirstDirectoryOfType(Mp4Directory.class).getDate(Mp4Directory.TAG_CREATION_TIME);
+            }
+            if (metadata.containsDirectoryOfType(AviDirectory.class)) {
+                String aviDate = metadata.getFirstDirectoryOfType(AviDirectory.class).getString(AviDirectory.TAG_DATETIME_ORIGINAL);
+                meta.createDate = new SimpleDateFormat("EEE MMM dd HH:mm:ss yyyy").parse(aviDate);
+            }
+            if (metadata.containsDirectoryOfType(ExifSubIFDDirectory.class)) {
+                meta.createDate = metadata.getFirstDirectoryOfType(ExifSubIFDDirectory.class).getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL);
+            }
+            if (metadata.containsDirectoryOfType(ExifIFD0Directory.class)) {
+                meta.equipment = metadata.getFirstDirectoryOfType(ExifIFD0Directory.class).getString(0x0110);
+            }
+
+            if (metadata.containsDirectoryOfType(QuickTimeDirectory.class)) {
+                Date origDate = metadata.getFirstDirectoryOfType(QuickTimeDirectory.class).getDate(QuickTimeDirectory.TAG_CREATION_TIME);
+                meta.createDate = new Date(origDate.getTime() + TimeZone.getTimeZone("Europe/Minsk").getOffset(origDate.getTime()));
+            }
+            if (metadata.containsDirectoryOfType(QuickTimeMetadataDirectory.class)) {
+                meta.equipment = metadata.getFirstDirectoryOfType(QuickTimeMetadataDirectory.class).getString(QuickTimeMetadataDirectory.TAG_MODEL);
+            }
+            if (meta.equipment == null) {
+                meta.equipment = "unknown";
+            }
+
         } catch (Exception e) {
             System.out.println("Can't read metadata: " + entry);
         }
         return meta;
     }
 
-    private static void save(Connection conn, File file, Date createDate, String md5, String equipment) throws SQLException {
+    private static void save(Connection conn, File file, Date createDate, String md5, String equipment) throws
+            SQLException {
         PreparedStatement st = conn.prepareStatement("INSERT INTO photos " +
-                "(path, name, size, created, md5, equipment) " +
-                "VALUES(?, ?, ?, ?, ?, ?) ON CONFLICT(path) DO nothing");
+                "(path, name, ext, size, created, md5, equipment) " +
+                "VALUES(?, ?, ?, ?, ?, ?, ?) ON CONFLICT(path) DO update set created = ?, md5 = ?, equipment = ?");
         st.setString(1, file.getAbsolutePath());
         st.setString(2, file.getName());
-        st.setLong(3, file.length());
-        st.setString(4, createDate == null ? null : formatter.format(createDate));
-        st.setString(5, md5);
-        st.setString(6, equipment);
+        st.setString(3, getFileExtension(file.getName()));
+        st.setLong(4, file.length());
+        st.setString(5, createDate == null ? null : formatter.format(createDate));
+        st.setString(6, md5);
+        st.setString(7, equipment);
+        st.setString(8, createDate == null ? null : formatter.format(createDate));
+        st.setString(9, md5);
+        st.setString(10, equipment);
         st.executeUpdate();
     }
 
@@ -198,6 +251,10 @@ public class PhotoDB {
     }
 
     private static class Metadata {
+        public Metadata(String equipment) {
+            this.equipment = equipment;
+        }
+
         Date createDate;
         String equipment;
     }
