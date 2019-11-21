@@ -1,14 +1,8 @@
 package vv.photodb;
 
 import com.drew.imaging.ImageMetadataReader;
-import com.drew.metadata.avi.AviDirectory;
 import com.drew.metadata.exif.ExifIFD0Directory;
-import com.drew.metadata.exif.ExifSubIFDDirectory;
-import com.drew.metadata.mov.QuickTimeDirectory;
-import com.drew.metadata.mov.metadata.QuickTimeMetadataDirectory;
-import com.drew.metadata.mp4.Mp4Directory;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -18,8 +12,7 @@ import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Set;
 
 public class Scanner {
 
@@ -32,15 +25,23 @@ public class Scanner {
     public static Long startProcessing = 0L;
 
     static void rescanMeta(String tableForSave) {
+        startProcessing = System.currentTimeMillis();
         try (Connection conn = PhotosDAO.getConnection()) {
             ResultSet resultSet = conn.createStatement().executeQuery("select * from " + tableForSave +
                     " where created is null");
             while (resultSet.next()) {
                 String path = resultSet.getString("path");
-                String sourceMD5 = resultSet.getString("md5");
-                Metadata metadata = readMetadata(Path.of(path), null);
-                metadata.comment = readComments(Path.of(path));
-                PhotosDAO.save(conn, tableForSave, new File(path), metadata, sourceMD5);
+                String defaultEquipment = resultSet.getString("equipment");
+                Path entry = Path.of(path);
+                PhotoInfo photoInfo = new PhotoInfoBuilder()
+                        .readFileInfo(entry)
+                        .readMetadata(entry, defaultEquipment)
+                        .readComments(entry)
+                        .addMD5(entry).build();
+                PhotosDAO.save(conn, tableForSave, photoInfo);
+                totalSize += photoInfo.size;
+                totalCount++;
+                System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + totalCount + " Size:" + (totalSize >> 20) + "M " + photoInfo);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -66,26 +67,33 @@ public class Scanner {
                     if (PhotoDB.args.resume && PhotosDAO.isSaved(conn, entry.toString(), tableForSave)) {
                         continue;
                     }
-                    String ext = Utils.getFileExtension(entry.toString());
-                    if (ext != null && !SKIP_EXT.contains(ext)) {
-                        Metadata metadata = readMetadata(entry, defaultEquipment);
-                        metadata.comment = readComments(entry);
-                        PhotosDAO.save(conn, tableForSave, entry.toFile(), metadata, Utils.MD5(entry));
-                        totalSize += entry.toFile().length();
+                    if (!skipFile(entry)) {
+                        PhotoInfo photoInfo = new PhotoInfoBuilder()
+                                .readFileInfo(entry)
+                                .readMetadata(entry, defaultEquipment)
+                                .readComments(entry)
+                                .addMD5(entry).build();
+                        PhotosDAO.save(conn, tableForSave, photoInfo);
+                        totalSize += photoInfo.size;
                         totalCount++;
 
-                        System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + totalCount + " Size:" + (totalSize >> 20) + "M File:" + entry.toFile() + " " + metadata);
+                        System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + totalCount + " Size:" + (totalSize >> 20) + "M " + photoInfo);
                     }
                 }
             }
         }
     }
 
+    private static boolean skipFile(Path entry) {
+        String name = entry.getFileName().toString();
+        String ext = Utils.getFileExtension(name);
+        return ext == null || SKIP_EXT.contains(ext) || name.startsWith(".");
+    }
+
     private static String getDefaultEquipment(Path path) throws IOException {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
             for (Path entry : stream) {
-                String ext = Utils.getFileExtension(entry.toString());
-                if (ext != null && !SKIP_EXT.contains(ext)) {
+                if (!skipFile(entry)) {
                     try {
                         return ImageMetadataReader.readMetadata(entry.toFile()).getFirstDirectoryOfType(ExifIFD0Directory.class).getString(0x0110);
                     } catch (Exception e) {
@@ -97,92 +105,23 @@ public class Scanner {
         return null;
     }
 
-    public static String readComments(Path entry) {
-        String result = readComment(entry.getParent().getFileName().toString());
-        if (result == null) {
-            result = readComment(entry.getParent().getParent().getFileName().toString());
-        }
-        return result;
-    }
-
-    private static String readComment(String parent) {
-        String result = null;
-        boolean hasComment = false;
-        for (int i = 0; i < parent.length(); i++) {
-            char ch = parent.charAt(i);
-            if (!hasComment && (ch > 'z')) {
-                hasComment = true;
-                result = "";
-            }
-            if (hasComment) {
-                result += ch;
-            }
-        }
-        return result;
-    }
-
-    private static Metadata readMetadata(Path entry, String defaultEquipment) {
-        Metadata meta = new Metadata();
-        meta.equipment = defaultEquipment;
-        try {
-
-            com.drew.metadata.Metadata metadata = ImageMetadataReader.readMetadata(entry.toFile());
-            // if (entry.toFile().getName().endsWith("MOV")) {
-            //metadata.getDirectories().forEach(d -> {
-            //    System.out.println(d.getName() + " " + d.getClass());
-            //    d.getTags().forEach(t -> System.out.println("\t" + t.getTagTypeHex() + " : " + t.toString()));
-            //});
-            //   }
-
-            if (metadata.containsDirectoryOfType(Mp4Directory.class)) {
-                meta.createDate = metadata.getFirstDirectoryOfType(Mp4Directory.class).getDate(Mp4Directory.TAG_CREATION_TIME);
-            }
-            if (metadata.containsDirectoryOfType(AviDirectory.class)) {
-                String aviDate = metadata.getFirstDirectoryOfType(AviDirectory.class).getString(AviDirectory.TAG_DATETIME_ORIGINAL);
-                meta.createDate = new SimpleDateFormat("EEE MMM dd HH:mm:ss yyyy").parse(aviDate);
-            }
-            if (metadata.containsDirectoryOfType(ExifSubIFDDirectory.class)) {
-                meta.createDate = metadata.getFirstDirectoryOfType(ExifSubIFDDirectory.class).getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL);
-            }
-            if (metadata.containsDirectoryOfType(ExifIFD0Directory.class)) {
-                meta.equipment = metadata.getFirstDirectoryOfType(ExifIFD0Directory.class).getString(0x0110);
-            }
-
-            if (metadata.containsDirectoryOfType(QuickTimeDirectory.class)) {
-                Date origDate = metadata.getFirstDirectoryOfType(QuickTimeDirectory.class).getDate(QuickTimeDirectory.TAG_CREATION_TIME);
-                meta.createDate = new Date(origDate.getTime() + TimeZone.getTimeZone("Europe/Minsk").getOffset(origDate.getTime()));
-            }
-            if (metadata.containsDirectoryOfType(QuickTimeMetadataDirectory.class)) {
-                meta.equipment = metadata.getFirstDirectoryOfType(QuickTimeMetadataDirectory.class).getString(QuickTimeMetadataDirectory.TAG_MODEL);
-            }
-            if (meta.equipment == null) {
-                meta.equipment = "unknown";
-            }
-
-            meta.equipment = meta.equipment != null ? meta.equipment.trim() : meta.equipment;
-
-        } catch (Exception e) {
-            System.out.println("Can't read metadata: " + entry);
-        }
-        return meta;
-    }
-
     static void copy(String dest) {
         startProcessing = System.currentTimeMillis();
         try (Connection conn = PhotosDAO.getConnection()) {
-            String sql = "select path, created, COALESCE (alias,equipment,'unknown') equipment, md5, comment " +
+            String sql = "select path, name, created, COALESCE (alias,equipment,'unknown') equipment, md5, comment " +
                     "from photos_for_copy p left join equipments e using(equipment) " +
                     "where destination is null and created is not null";
             ResultSet resultSet = conn.createStatement().executeQuery(sql);
             while (resultSet.next()) {
 
                 String path = resultSet.getString("path");
+                String name = resultSet.getString("path");
                 String created = resultSet.getString("created");
                 String equipment = resultSet.getString("equipment");
                 String comment = resultSet.getString("comment");
                 String sourceMD5 = resultSet.getString("md5");
 
-                Path destFile = copyFile(path, dest, created, equipment, comment, sourceMD5);
+                Path destFile = copyFile(path, dest, name, created, equipment, comment, sourceMD5);
 
                 conn.createStatement().executeUpdate("update photos set destination='" + destFile.toString() + "' where path='" + path + "'");
             }
@@ -191,7 +130,7 @@ public class Scanner {
         }
     }
 
-    private static Path copyFile(String path, String dest, String created, String equipment, String comment, String sourceMD5) throws Exception {
+    private static Path copyFile(String path, String dest, String name, String created, String equipment, String comment, String sourceMD5) throws Exception {
 
         String commentVal = comment != null ? "_" + comment : "";
         String equipmentVal = equipment != null ? "_" + equipment : "";
@@ -204,7 +143,7 @@ public class Scanner {
         }
 
         Path sourceFile = Path.of(path);
-        Path destFile = destDir.resolve(sourceFile.getFileName());
+        Path destFile = destDir.resolve(name);
 
         totalSize += sourceFile.toFile().length();
         totalCount++;
