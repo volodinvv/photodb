@@ -29,45 +29,46 @@ public class Scanner {
     public static Long totalProcessed = 0L;
     public static Long startProcessing = 0L;
 
-    static void rescanMeta() {
+    static void rescanMeta(String tableForSave) {
         try (Connection conn = PhotosDAO.getConnection()) {
-            ResultSet resultSet = conn.createStatement().executeQuery("select * from photos where created is null");
+            ResultSet resultSet = conn.createStatement().executeQuery("select * from " + tableForSave +
+                    " where created is null");
             while (resultSet.next()) {
                 String path = resultSet.getString("path");
                 String sourceMD5 = resultSet.getString("md5");
                 Metadata metadata = readMetadata(Path.of(path), null);
                 String comment = readComments(Path.of(path));
-                PhotosDAO.save(conn, new File(path), metadata.createDate, sourceMD5, metadata.equipment, comment);
+                PhotosDAO.save(conn, tableForSave, new File(path), metadata.createDate, sourceMD5, metadata.equipment, comment);
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    static void scan(String source) {
+    static void scan(String source, String tableForSave) {
         startProcessing = System.currentTimeMillis();
         try (Connection conn = PhotosDAO.getConnection()) {
-            processDir(conn, Path.of(source));
+            processDir(conn, Path.of(source), tableForSave);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private static void processDir(Connection conn, Path path) throws IOException, NoSuchAlgorithmException, SQLException {
+    private static void processDir(Connection conn, Path path, String tableForSave) throws IOException, NoSuchAlgorithmException, SQLException {
         String defaultEquipment = getDefaultEquipment(path);
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
             for (Path entry : stream) {
                 if (Files.isDirectory(entry)) {
-                    processDir(conn, entry);
+                    processDir(conn, entry, tableForSave);
                 } else {
-                    if (PhotoDB.args.resume && PhotosDAO.isSaved(conn, entry.toString())) {
+                    if (PhotoDB.args.resume && PhotosDAO.isSaved(conn, entry.toString(), tableForSave)) {
                         continue;
                     }
                     String ext = Utils.getFileExtension(entry.toString());
                     if (ext != null && !SKIP_EXT.contains(ext)) {
                         Metadata metadata = readMetadata(entry, defaultEquipment);
                         String comment = readComments(entry);
-                        PhotosDAO.save(conn, entry.toFile(), metadata.createDate, Utils.MD5(entry), metadata.equipment, comment);
+                        PhotosDAO.save(conn, tableForSave, entry.toFile(), metadata.createDate, Utils.MD5(entry), metadata.equipment, comment);
                         totalProcessed += entry.toFile().length();
                         System.out.println(((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + (totalProcessed >> 20) + "M file:" + entry.toFile());
                     }
@@ -120,9 +121,6 @@ public class Scanner {
         Metadata meta = new Metadata(defaultEquipment);
         try {
 
-            //TODO: extract description from folder name
-            System.out.println(readComments(entry));
-
             com.drew.metadata.Metadata metadata = ImageMetadataReader.readMetadata(entry.toFile());
             // if (entry.toFile().getName().endsWith("MOV")) {
             //metadata.getDirectories().forEach(d -> {
@@ -165,10 +163,9 @@ public class Scanner {
     static void copy(String dest) {
         startProcessing = System.currentTimeMillis();
         try (Connection conn = PhotosDAO.getConnection()) {
-            //TODO: skip duplicates
-            String sql = "select path, created, alias as equipment, md5, comment " +
-                    "from photos p left join equipments e using(equipment) " +
-                    "where destination is null and created is not null and equipment is not null";
+            String sql = "select path, created, COALESCE (alias,equipment,'unknown') equipment, md5, comment " +
+                    "from photos_for_copy p left join equipments e using(equipment) " +
+                    "where destination is null and created is not null";
             ResultSet resultSet = conn.createStatement().executeQuery(sql);
             while (resultSet.next()) {
 

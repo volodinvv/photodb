@@ -20,6 +20,9 @@ public class PhotoDB {
 
         @Parameter(names = "-resume")
         public boolean resume;
+
+        @Parameter(names = "-table")
+        public String table = "photos";
     }
 
     public static final Args args = new Args();
@@ -30,10 +33,10 @@ public class PhotoDB {
 
         switch (PhotoDB.args.cmd) {
             case "scan":
-                Scanner.scan(PhotoDB.args.source);
+                Scanner.scan(PhotoDB.args.source, PhotoDB.args.table);
                 break;
             case "rescanMeta":
-                Scanner.rescanMeta();
+                Scanner.rescanMeta(PhotoDB.args.table);
                 break;
             case "copy":
                 Scanner.copy(PhotoDB.args.dest);

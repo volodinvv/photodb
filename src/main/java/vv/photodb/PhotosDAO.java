@@ -12,19 +12,20 @@ public class PhotosDAO {
     }
 
 
-    public static boolean isSaved(Connection conn, String path) throws SQLException {
-        try (ResultSet resultSet = conn.createStatement().executeQuery("select * from photos where path='" + path + "'")) {
+    public static boolean isSaved(Connection conn, String path, String tableForSave) throws SQLException {
+        try (ResultSet resultSet = conn.createStatement().executeQuery("select * from " + tableForSave + " where path='" + path + "'")) {
             return resultSet.next();
         }
     }
 
 
-    public static void save(Connection conn, File file, Date createDate, String md5, String equipment, String comment) throws
+    public static void save(Connection conn, String tableForSave, File file, Date createDate, String md5, String equipment, String comment) throws
             SQLException {
 
         equipment = equipment != null ? equipment.trim() : equipment;
 
-        PreparedStatement st = conn.prepareStatement("INSERT INTO photos (path, name, ext, size, created, md5, equipment, comment) " +
+        PreparedStatement st = conn.prepareStatement("INSERT INTO " + tableForSave +
+                " (path, name, ext, size, created, md5, equipment, comment) " +
                 "VALUES(?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(path) DO update set created = ?, md5 = ?, equipment = ?, comment = ?");
         st.setString(1, file.getAbsolutePath());
         st.setString(2, file.getName());
