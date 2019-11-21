@@ -26,7 +26,9 @@ public class Scanner {
     private static final Set<Object> SKIP_EXT = Set.of("index", "txt", "ini",
             "info", "db", "amr", "ctg", "ithmb", "nri", "scn", "thm", "xml");
 
-    public static Long totalProcessed = 0L;
+    public static Long totalSize = 0L;
+    public static Long totalCount = 0L;
+
     public static Long startProcessing = 0L;
 
     static void rescanMeta(String tableForSave) {
@@ -37,8 +39,8 @@ public class Scanner {
                 String path = resultSet.getString("path");
                 String sourceMD5 = resultSet.getString("md5");
                 Metadata metadata = readMetadata(Path.of(path), null);
-                String comment = readComments(Path.of(path));
-                PhotosDAO.save(conn, tableForSave, new File(path), metadata.createDate, sourceMD5, metadata.equipment, comment);
+                metadata.comment = readComments(Path.of(path));
+                PhotosDAO.save(conn, tableForSave, new File(path), metadata, sourceMD5);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -67,10 +69,12 @@ public class Scanner {
                     String ext = Utils.getFileExtension(entry.toString());
                     if (ext != null && !SKIP_EXT.contains(ext)) {
                         Metadata metadata = readMetadata(entry, defaultEquipment);
-                        String comment = readComments(entry);
-                        PhotosDAO.save(conn, tableForSave, entry.toFile(), metadata.createDate, Utils.MD5(entry), metadata.equipment, comment);
-                        totalProcessed += entry.toFile().length();
-                        System.out.println(((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + (totalProcessed >> 20) + "M file:" + entry.toFile());
+                        metadata.comment = readComments(entry);
+                        PhotosDAO.save(conn, tableForSave, entry.toFile(), metadata, Utils.MD5(entry));
+                        totalSize += entry.toFile().length();
+                        totalCount++;
+
+                        System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + totalCount + " Size:" + (totalSize >> 20) + "M File:" + entry.toFile() + " " + metadata);
                     }
                 }
             }
@@ -118,7 +122,8 @@ public class Scanner {
     }
 
     private static Metadata readMetadata(Path entry, String defaultEquipment) {
-        Metadata meta = new Metadata(defaultEquipment);
+        Metadata meta = new Metadata();
+        meta.equipment = defaultEquipment;
         try {
 
             com.drew.metadata.Metadata metadata = ImageMetadataReader.readMetadata(entry.toFile());
@@ -153,6 +158,8 @@ public class Scanner {
             if (meta.equipment == null) {
                 meta.equipment = "unknown";
             }
+
+            meta.equipment = meta.equipment != null ? meta.equipment.trim() : meta.equipment;
 
         } catch (Exception e) {
             System.out.println("Can't read metadata: " + entry);
@@ -199,20 +206,21 @@ public class Scanner {
         Path sourceFile = Path.of(path);
         Path destFile = destDir.resolve(sourceFile.getFileName());
 
-        totalProcessed += sourceFile.toFile().length();
+        totalSize += sourceFile.toFile().length();
+        totalCount++;
 
         if (Files.notExists(destFile)) {
             Files.copy(sourceFile, destFile);
             Files.setLastModifiedTime(destDir, FileTime.fromMillis(Utils.formatter.parse(created).getTime()));
 
-            System.out.println(((System.currentTimeMillis() - startProcessing) / 1000) + "s Copied: " + (totalProcessed >> 20) + "M files: " + sourceFile + " -> " + destFile);
+            System.out.println(((System.currentTimeMillis() - startProcessing) / 1000) + "s Copied: " + totalCount + " Size:" + (totalSize >> 20) + "M Files: " + sourceFile + " -> " + destFile);
         } else {
             String destMD5 = Utils.MD5(destFile);
             if (!destMD5.equals(sourceMD5)) {
                 throw new Exception("MD5 not equals: " + sourceFile + " -> " + destFile);
             }
 
-            System.out.println("Checked: " + sourceFile + " -> " + destFile);
+            System.out.println(((System.currentTimeMillis() - startProcessing) / 1000) + "s Checked: " + totalCount + " Size:" + (totalSize >> 20) + "M Files: " + sourceFile + " -> " + destFile);
         }
         return destFile;
     }

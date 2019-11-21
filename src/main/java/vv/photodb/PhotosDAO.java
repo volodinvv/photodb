@@ -19,10 +19,8 @@ public class PhotosDAO {
     }
 
 
-    public static void save(Connection conn, String tableForSave, File file, Date createDate, String md5, String equipment, String comment) throws
+    public static void save(Connection conn, String tableForSave, File file, Metadata metadata, String md5) throws
             SQLException {
-
-        equipment = equipment != null ? equipment.trim() : equipment;
 
         PreparedStatement st = conn.prepareStatement("INSERT INTO " + tableForSave +
                 " (path, name, ext, size, created, md5, equipment, comment) " +
@@ -31,14 +29,14 @@ public class PhotosDAO {
         st.setString(2, file.getName());
         st.setString(3, Utils.getFileExtension(file.getName()));
         st.setLong(4, file.length());
-        st.setString(5, createDate == null ? null : Utils.formatter.format(createDate));
+        st.setString(5, metadata.createDate == null ? null : Utils.formatter.format(metadata.createDate));
         st.setString(6, md5);
-        st.setString(7, equipment);
-        st.setString(8, comment);
-        st.setString(9, createDate == null ? null : Utils.formatter.format(createDate));
+        st.setString(7, metadata.equipment);
+        st.setString(8, metadata.comment);
+        st.setString(9, metadata.createDate == null ? null : Utils.formatter.format(metadata.createDate));
         st.setString(10, md5);
-        st.setString(11, equipment);
-        st.setString(12, comment);
+        st.setString(11, metadata.equipment);
+        st.setString(12, metadata.comment);
 
         st.executeUpdate();
     }
