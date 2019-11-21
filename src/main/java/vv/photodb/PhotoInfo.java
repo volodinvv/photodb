@@ -19,7 +19,7 @@ class PhotoInfo {
                 ", name='" + name + '\'' +
                 ", ext='" + ext + '\'' +
                 ", size=" + size +
-                ", createDate=" + Utils.formatter.format(createDate) +
+                ", createDate=" + (createDate!= null? Utils.formatter.format(createDate):createDate) +
                 ", equipment='" + equipment + '\'' +
                 ", comment='" + comment + '\'' +
                 '}';

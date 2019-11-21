@@ -64,20 +64,23 @@ public class Scanner {
                 if (Files.isDirectory(entry)) {
                     processDir(conn, entry, tableForSave);
                 } else {
+                    System.out.println(entry);
                     if (PhotoDB.args.resume && PhotosDAO.isSaved(conn, entry.toString(), tableForSave)) {
-                        continue;
-                    }
-                    if (!skipFile(entry)) {
-                        PhotoInfo photoInfo = new PhotoInfoBuilder()
-                                .readFileInfo(entry)
-                                .readMetadata(entry, defaultEquipment)
-                                .readComments(entry)
-                                .addMD5(entry).build();
-                        PhotosDAO.save(conn, tableForSave, photoInfo);
-                        totalSize += photoInfo.size;
                         totalCount++;
+                        System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Skipped: " + totalCount + " Size:" + (totalSize >> 20) + "M " + entry);
+                    } else {
+                        if (!skipFile(entry)) {
+                            PhotoInfo photoInfo = new PhotoInfoBuilder()
+                                    .readFileInfo(entry)
+                                    .readMetadata(entry, defaultEquipment)
+                                    .readComments(entry)
+                                    .addMD5(entry).build();
+                            PhotosDAO.save(conn, tableForSave, photoInfo);
+                            totalSize += photoInfo.size;
+                            totalCount++;
 
-                        System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + totalCount + " Size:" + (totalSize >> 20) + "M " + photoInfo);
+                            System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + totalCount + " Size:" + (totalSize >> 20) + "M " + photoInfo);
+                        }
                     }
                 }
             }
