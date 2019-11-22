@@ -41,6 +41,11 @@ public class PhotoDB {
             case "copy":
                 Scanner.copy(PhotoDB.args.dest);
                 break;
+            case "calculateFolder":
+                Scanner.calculateFolder(PhotoDB.args.table);
+                break;
+
+
         }
     }
 

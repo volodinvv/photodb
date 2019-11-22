@@ -6,7 +6,8 @@ public class PhotosDAO {
 
 
     public static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection("jdbc:sqlite:D:/Private/PhotoDB/db/photodb");
+        //return DriverManager.getConnection("jdbc:sqlite:D:/Private/PhotoDB/db/photodb");
+        return DriverManager.getConnection("jdbc:sqlite:D:/Private/PhotoDB/home/photodb");
     }
 
 
@@ -36,6 +37,14 @@ public class PhotosDAO {
         st.setString(11, photoInfo.equipment);
         st.setString(12, photoInfo.comment);
 
+        st.executeUpdate();
+    }
+
+    public static void updateFolder(Connection conn, String tableForSave, String path, String folder) throws
+            SQLException {
+        PreparedStatement st = conn.prepareStatement("UPDATE " + tableForSave + " set folder=? where path =?");
+        st.setString(1, folder);
+        st.setString(2, path);
         st.executeUpdate();
     }
 }

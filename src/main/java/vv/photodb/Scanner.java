@@ -2,6 +2,7 @@ package vv.photodb;
 
 import com.drew.imaging.ImageMetadataReader;
 import com.drew.metadata.exif.ExifIFD0Directory;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -42,6 +43,31 @@ public class Scanner {
                 totalSize += photoInfo.size;
                 totalCount++;
                 System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + totalCount + " Size:" + (totalSize >> 20) + "M " + photoInfo);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void calculateFolder(String tableForSave) {
+        startProcessing = System.currentTimeMillis();
+        try (Connection conn = PhotosDAO.getConnection()) {
+            ResultSet resultSet = conn.createStatement().executeQuery("select * from " + tableForSave);
+            while (resultSet.next()) {
+                String path = resultSet.getString("path");
+
+                String folder = StringUtils.removeStart(path, "F:\\wireless\\Фото\\");
+
+                folder = StringUtils.removeStart(folder, "F:\\Фото\\");
+                folder = StringUtils.removeStart(folder, "F:\\Фото\\Фото\\");
+
+                folder = StringUtils.substringBeforeLast(folder, "\\");
+
+                System.out.println(path + " -> " + folder);
+
+                PhotosDAO.updateFolder(conn, tableForSave, path, folder);
+                totalCount++;
+                //System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + totalCount + " Size:" + (totalSize >> 20) + "M " + photoInfo);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -108,7 +134,7 @@ public class Scanner {
     static void copy(String dest) {
         startProcessing = System.currentTimeMillis();
         try (Connection conn = PhotosDAO.getConnection()) {
-            String sql = "select path, name, created, COALESCE (alias,equipment,'unknown') equipment, md5, comment " +
+            String sql = "select path, name, created, COALESCE (alias,equipment) equipment, md5, comment " +
                     "from photos_for_copy p left join equipments e using(equipment) " +
                     "where destination is null and created is not null";
             ResultSet resultSet = conn.createStatement().executeQuery(sql);
@@ -133,7 +159,7 @@ public class Scanner {
     private static Path copyFile(String path, String dest, String name, String created, String equipment, String comment, String sourceMD5) throws Exception {
 
         String commentVal = comment != null ? "_" + comment : "";
-        String equipmentVal = equipment != null ? "_" + equipment : "";
+        String equipmentVal = equipment != null && !equipment.equals("unknown") ? "_" + equipment : "";
         String dirName = created.substring(5, 7) + "_" + created.substring(8, 10) + equipmentVal + commentVal;
 
         Path destDir = Path.of(dest, created.substring(0, 4), dirName);
