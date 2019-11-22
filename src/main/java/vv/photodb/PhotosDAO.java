@@ -12,7 +12,7 @@ public class PhotosDAO {
 
 
     public static boolean isSaved(Connection conn, String path, String tableForSave) throws SQLException {
-        try (ResultSet resultSet = conn.createStatement().executeQuery("select * from " + tableForSave + " where path='" + path + "'")) {
+        try (ResultSet resultSet = conn.createStatement().executeQuery("select * from " + tableForSave + " where path='" + path.replace("'", "''") + "'")) {
             return resultSet.next();
         }
     }
