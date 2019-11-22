@@ -80,7 +80,7 @@ public class PhotoInfoBuilder {
                 photoInfo.equipment = "unknown";
             }
 
-            photoInfo.equipment = photoInfo.equipment != null ? photoInfo.equipment.trim() : photoInfo.equipment;
+            photoInfo.equipment = photoInfo.equipment.trim();
 
         } catch (Exception e) {
             System.out.println("Can't read metadata: " + entry);
@@ -102,7 +102,7 @@ public class PhotoInfoBuilder {
     }
 
     public PhotoInfoBuilder addMD5(Path entry) throws IOException, NoSuchAlgorithmException {
-        photoInfo.md5=Utils.MD5(entry);
+        photoInfo.md5 = Utils.MD5(entry);
         return this;
     }
 }
