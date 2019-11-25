@@ -2,23 +2,29 @@ package vv.photodb;
 
 import java.sql.*;
 
-public class PhotosDAO {
+public class PhotosDAO implements AutoCloseable {
 
+    private Connection conn;
+    private String tableForSave;
 
-    public static Connection getConnection() throws SQLException {
+    public PhotosDAO() throws SQLException {
         //return DriverManager.getConnection("jdbc:sqlite:D:/Private/PhotoDB/db/photodb");
-        return DriverManager.getConnection("jdbc:sqlite:D:/Private/PhotoDB/home/photodb");
+        conn = DriverManager.getConnection("jdbc:sqlite:D:/Private/PhotoDB/home/photodb");
+        tableForSave = PhotoDB.args.table;
     }
 
+    public Connection getConnection() throws SQLException {
+        return conn;
+    }
 
-    public static boolean isSaved(Connection conn, String path, String tableForSave) throws SQLException {
+    public boolean isSaved(String path) throws SQLException {
         try (ResultSet resultSet = conn.createStatement().executeQuery("select * from " + tableForSave + " where path='" + path.replace("'", "''") + "'")) {
             return resultSet.next();
         }
     }
 
 
-    public static void save(Connection conn, String tableForSave, PhotoInfo photoInfo) throws
+    public void save(PhotoInfo photoInfo) throws
             SQLException {
 
         PreparedStatement st = conn.prepareStatement("INSERT INTO " + tableForSave +
@@ -40,11 +46,16 @@ public class PhotosDAO {
         st.executeUpdate();
     }
 
-    public static void updateFolder(Connection conn, String tableForSave, String path, String folder) throws
+    public void updateFolder(String path, String folder) throws
             SQLException {
         PreparedStatement st = conn.prepareStatement("UPDATE " + tableForSave + " set folder=? where path =?");
         st.setString(1, folder);
         st.setString(2, path);
         st.executeUpdate();
+    }
+
+    @Override
+    public void close() throws Exception {
+        conn.close();
     }
 }
