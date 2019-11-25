@@ -4,6 +4,7 @@ import com.drew.imaging.ImageMetadataReader;
 import com.drew.metadata.avi.AviDirectory;
 import com.drew.metadata.exif.ExifIFD0Directory;
 import com.drew.metadata.exif.ExifSubIFDDirectory;
+import com.drew.metadata.file.FileSystemDirectory;
 import com.drew.metadata.mov.QuickTimeDirectory;
 import com.drew.metadata.mov.metadata.QuickTimeMetadataDirectory;
 import com.drew.metadata.mp4.Mp4Directory;
@@ -48,12 +49,12 @@ public class PhotoInfoBuilder {
         try {
 
             com.drew.metadata.Metadata metadata = ImageMetadataReader.readMetadata(entry.toFile());
-            // if (entry.toFile().getName().endsWith("MOV")) {
-            //metadata.getDirectories().forEach(d -> {
-            //    System.out.println(d.getName() + " " + d.getClass());
-            //    d.getTags().forEach(t -> System.out.println("\t" + t.getTagTypeHex() + " : " + t.toString()));
-            //});
-            //   }
+            if (entry.toFile().getName().endsWith("JPG")) {
+                metadata.getDirectories().forEach(d -> {
+                    System.out.println(d.getName() + " " + d.getClass());
+                    d.getTags().forEach(t -> System.out.println("\t" + t.getTagTypeHex() + " : " + t.toString()));
+                });
+            }
 
             if (metadata.containsDirectoryOfType(Mp4Directory.class)) {
                 photoInfo.createDate = metadata.getFirstDirectoryOfType(Mp4Directory.class).getDate(Mp4Directory.TAG_CREATION_TIME);
@@ -76,6 +77,11 @@ public class PhotoInfoBuilder {
             if (metadata.containsDirectoryOfType(QuickTimeMetadataDirectory.class)) {
                 photoInfo.equipment = metadata.getFirstDirectoryOfType(QuickTimeMetadataDirectory.class).getString(QuickTimeMetadataDirectory.TAG_MODEL);
             }
+
+            if(photoInfo.createDate == null){
+                photoInfo.createDate=  metadata.getFirstDirectoryOfType(FileSystemDirectory.class).getDate(FileSystemDirectory.TAG_FILE_MODIFIED_DATE);
+            }
+
             if (photoInfo.equipment == null) {
                 photoInfo.equipment = "unknown";
             }
@@ -83,6 +89,7 @@ public class PhotoInfoBuilder {
             photoInfo.equipment = photoInfo.equipment.trim();
 
         } catch (Exception e) {
+            e.printStackTrace();
             System.out.println("Can't read metadata: " + entry);
         }
         return this;

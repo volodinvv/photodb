@@ -3,6 +3,10 @@ package vv.photodb;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 /**
  *
  */
@@ -29,6 +33,17 @@ public class PhotoDB {
 
     public static void main(String[] args) {
 
+
+
+        try {
+
+            System.out.println(Utils.aviFormatter.parse(    "JAN 09 15:11:25 2008"));
+
+            System.out.println(new SimpleDateFormat("EEE MMM dd HH:mm:ss yyyy").format( new Date()));
+        } catch (ParseException e) {
+            e.printStackTrace();
+            System.exit(0);
+        }
         new JCommander(PhotoDB.args).parse(args);
 
         switch (PhotoDB.args.cmd) {
