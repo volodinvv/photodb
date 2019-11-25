@@ -13,6 +13,7 @@ import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Date;
 import java.util.Set;
 
 public class Scanner {
@@ -27,8 +28,8 @@ public class Scanner {
 
     static void rescanMeta(String tableForSave) {
         startProcessing = System.currentTimeMillis();
-        try (Connection conn = PhotosDAO.getConnection()) {
-            ResultSet resultSet = conn.createStatement().executeQuery("select * from " + tableForSave +
+        try (PhotosDAO dao = new PhotosDAO()) {
+            ResultSet resultSet = dao.getConnection().createStatement().executeQuery("select * from " + tableForSave +
                     " where created is null");
             while (resultSet.next()) {
                 String path = resultSet.getString("path");
@@ -39,7 +40,7 @@ public class Scanner {
                         .readMetadata(entry, defaultEquipment)
                         .readComments(entry)
                         .addMD5(entry).build();
-                PhotosDAO.save(conn, tableForSave, photoInfo);
+                dao.save(photoInfo);
                 totalSize += photoInfo.size;
                 totalCount++;
                 System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + totalCount + " Size:" + (totalSize >> 20) + "M " + photoInfo);
@@ -51,8 +52,8 @@ public class Scanner {
 
     public static void calculateFolder(String tableForSave) {
         startProcessing = System.currentTimeMillis();
-        try (Connection conn = PhotosDAO.getConnection()) {
-            ResultSet resultSet = conn.createStatement().executeQuery("select * from " + tableForSave);
+        try (PhotosDAO dao = new PhotosDAO()) {
+            ResultSet resultSet = dao.getConnection().createStatement().executeQuery("select * from " + tableForSave);
             while (resultSet.next()) {
                 String path = resultSet.getString("path");
 
@@ -65,7 +66,7 @@ public class Scanner {
 
                 System.out.println(path + " -> " + folder);
 
-                PhotosDAO.updateFolder(conn, tableForSave, path, folder);
+                dao.updateFolder(path, folder);
                 totalCount++;
                 //System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + totalCount + " Size:" + (totalSize >> 20) + "M " + photoInfo);
             }
@@ -76,22 +77,22 @@ public class Scanner {
 
     static void scan(String source, String tableForSave) {
         startProcessing = System.currentTimeMillis();
-        try (Connection conn = PhotosDAO.getConnection()) {
-            processDir(conn, Path.of(source), tableForSave);
+        try (PhotosDAO dao = new PhotosDAO()) {
+            processDir(dao, Path.of(source));
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private static void processDir(Connection conn, Path path, String tableForSave) throws IOException, NoSuchAlgorithmException, SQLException {
+    private static void processDir(PhotosDAO dao, Path path) throws IOException, NoSuchAlgorithmException, SQLException {
         String defaultEquipment = getDefaultEquipment(path);
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
             for (Path entry : stream) {
                 if (Files.isDirectory(entry)) {
-                    processDir(conn, entry, tableForSave);
+                    processDir(dao, entry);
                 } else {
                     System.out.println(entry);
-                    if (PhotoDB.args.resume && PhotosDAO.isSaved(conn, entry.toString(), tableForSave)) {
+                    if (PhotoDB.args.resume && dao.isSaved(entry.toString())) {
                         totalCount++;
                         System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Skipped: " + totalCount + " Size:" + (totalSize >> 20) + "M " + entry);
                     } else {
@@ -101,7 +102,7 @@ public class Scanner {
                                     .readMetadata(entry, defaultEquipment)
                                     .readComments(entry)
                                     .addMD5(entry).build();
-                            PhotosDAO.save(conn, tableForSave, photoInfo);
+                            dao.save(photoInfo);
                             totalSize += photoInfo.size;
                             totalCount++;
 
@@ -136,11 +137,11 @@ public class Scanner {
 
     static void copy(String dest) {
         startProcessing = System.currentTimeMillis();
-        try (Connection conn = PhotosDAO.getConnection()) {
+        try (PhotosDAO dao = new PhotosDAO()) {
             String sql = "select path, name, created, COALESCE (alias,equipment) equipment, md5, comment " +
                     "from photos_for_copy p left join equipments e using(equipment) " +
                     "where destination is null and created is not null";
-            ResultSet resultSet = conn.createStatement().executeQuery(sql);
+            ResultSet resultSet = dao.getConnection().createStatement().executeQuery(sql);
             while (resultSet.next()) {
 
                 String path = resultSet.getString("path");
@@ -152,7 +153,7 @@ public class Scanner {
 
                 Path destFile = copyFile(path, dest, name, created, equipment, comment, sourceMD5);
 
-                conn.createStatement().executeUpdate("update photos set destination='" + destFile.toString() + "' where path='" + path + "'");
+                dao.getConnection().createStatement().executeUpdate("update photos set destination='" + destFile.toString() + "' where path='" + path + "'");
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -191,5 +192,47 @@ public class Scanner {
             System.out.println(((System.currentTimeMillis() - startProcessing) / 1000) + "s Checked: " + totalCount + " Size:" + (totalSize >> 20) + "M Files: " + sourceFile + " -> " + destFile);
         }
         return destFile;
+    }
+
+    public static Date dateFromPath(Path path) {
+
+        String year = "";
+        String month = "";
+        String day = "";
+        for (Path p : path) {
+            String str = p.toString();
+            year = "";
+            month = "";
+            day = "";
+            for (int i = 0; i < str.length(); i++) {
+                if (i >= 0 && i <= 3) {
+                    if (Character.isDigit(str.charAt(i))) {
+                        year += str.charAt(i);
+                    } else {
+                        break;
+                    }
+                }
+                if (i >= 5 && i <= 6) {
+                    if (Character.isDigit(str.charAt(i))) {
+                        month += str.charAt(i);
+                    } else {
+                        break;
+                    }
+                }
+                if (i >= 8 && i <= 9) {
+                    if (Character.isDigit(str.charAt(i))) {
+                        day += str.charAt(i);
+                    } else {
+                        break;
+                    }
+                }
+                if (i == 9) {
+
+                    System.out.println(year + "-" + month + "-" + day);
+                    break;
+                }
+            }
+        }
+        return null;
     }
 }
