@@ -33,17 +33,6 @@ public class PhotoDB {
 
     public static void main(String[] args) {
 
-
-
-        try {
-
-            System.out.println(Utils.aviFormatter.parse(    "JAN 09 15:11:25 2008"));
-
-            System.out.println(new SimpleDateFormat("EEE MMM dd HH:mm:ss yyyy").format( new Date()));
-        } catch (ParseException e) {
-            e.printStackTrace();
-            System.exit(0);
-        }
         new JCommander(PhotoDB.args).parse(args);
 
         switch (PhotoDB.args.cmd) {
@@ -59,8 +48,8 @@ public class PhotoDB {
             case "calculateFolder":
                 Scanner.calculateFolder();
                 break;
-
-
+            default:
+                System.out.println("Unknown command: " + PhotoDB.args.cmd);
         }
     }
 

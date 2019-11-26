@@ -12,6 +12,8 @@ class PhotoInfo {
     public String equipment;
     public String comment;
     public String md5;
+    public String destination;
+
 
     @Override
     public String toString() {
@@ -24,6 +26,7 @@ class PhotoInfo {
                 ", createDate=" + (createDate!= null? Utils.formatter.format(createDate):createDate) +
                 ", equipment='" + equipment + '\'' +
                 ", comment='" + comment + '\'' +
+                ", destination='" + destination + '\'' +
                 '}';
     }
 }
