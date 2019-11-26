@@ -5,6 +5,7 @@ import java.util.Date;
 class PhotoInfo {
     public String path;
     public String name;
+    public String folder;
     public String ext;
     public Long size;
     public Date createDate;
@@ -17,6 +18,7 @@ class PhotoInfo {
         return "Metadata{" +
                 "path='" + path + '\'' +
                 ", name='" + name + '\'' +
+                ", folder='" + folder + '\'' +
                 ", ext='" + ext + '\'' +
                 ", size=" + size +
                 ", createDate=" + (createDate!= null? Utils.formatter.format(createDate):createDate) +

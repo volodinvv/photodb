@@ -78,9 +78,9 @@ public class PhotoInfoBuilder {
                 photoInfo.equipment = metadata.getFirstDirectoryOfType(QuickTimeMetadataDirectory.class).getString(QuickTimeMetadataDirectory.TAG_MODEL);
             }
 
-            if(photoInfo.createDate == null){
-                photoInfo.createDate=  metadata.getFirstDirectoryOfType(FileSystemDirectory.class).getDate(FileSystemDirectory.TAG_FILE_MODIFIED_DATE);
-            }
+            //if(photoInfo.createDate == null){
+            //    photoInfo.createDate=  metadata.getFirstDirectoryOfType(FileSystemDirectory.class).getDate(FileSystemDirectory.TAG_FILE_MODIFIED_DATE);
+            //}
 
             if (photoInfo.equipment == null) {
                 photoInfo.equipment = "unknown";
@@ -99,12 +99,13 @@ public class PhotoInfoBuilder {
         return photoInfo;
     }
 
-    public PhotoInfoBuilder readFileInfo(Path entry) {
+    public PhotoInfoBuilder readFileInfo(Path entry, Path root) {
         File file = entry.toFile();
         photoInfo.path = file.getAbsolutePath();
         photoInfo.name = file.getName();
         photoInfo.ext = Utils.getFileExtension(file.getName());
         photoInfo.size = file.length();
+        photoInfo.folder = root.relativize(entry.getParent()).toString();
         return this;
     }
 

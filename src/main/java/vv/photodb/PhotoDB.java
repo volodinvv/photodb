@@ -48,16 +48,16 @@ public class PhotoDB {
 
         switch (PhotoDB.args.cmd) {
             case "scan":
-                Scanner.scan(PhotoDB.args.source, PhotoDB.args.table);
+                Scanner.scan(PhotoDB.args.source);
                 break;
             case "rescanMeta":
-                Scanner.rescanMeta(PhotoDB.args.table);
+                Scanner.rescanMeta();
                 break;
             case "copy":
                 Scanner.copy(PhotoDB.args.dest);
                 break;
             case "calculateFolder":
-                Scanner.calculateFolder(PhotoDB.args.table);
+                Scanner.calculateFolder();
                 break;
 
 

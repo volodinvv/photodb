@@ -9,7 +9,6 @@ public class ScannerTest {
     @Test
     public void dateFromPath() {
 
-        Scanner.dateFromPath(Path.of("ddd", "2090asdskkj", "2010-09-23"));
 
     }
 }

@@ -26,17 +26,17 @@ public class Scanner {
 
     public static Long startProcessing = 0L;
 
-    static void rescanMeta(String tableForSave) {
+    static void rescanMeta() {
         startProcessing = System.currentTimeMillis();
         try (PhotosDAO dao = new PhotosDAO()) {
-            ResultSet resultSet = dao.getConnection().createStatement().executeQuery("select * from " + tableForSave +
+            ResultSet resultSet = dao.getConnection().createStatement().executeQuery("select * from " + dao.tableForSave +
                     " where created is null");
             while (resultSet.next()) {
                 String path = resultSet.getString("path");
                 String defaultEquipment = resultSet.getString("equipment");
                 Path entry = Path.of(path);
                 PhotoInfo photoInfo = new PhotoInfoBuilder()
-                        .readFileInfo(entry)
+                        .readFileInfo(entry, null)
                         .readMetadata(entry, defaultEquipment)
                         .readComments(entry)
                         .addMD5(entry).build();
@@ -50,32 +50,30 @@ public class Scanner {
         }
     }
 
-    public static void calculateFolder(String tableForSave) {
+    public static void calculateFolder() {
+
+        Path root = Path.of(PhotoDB.args.source);
         startProcessing = System.currentTimeMillis();
         try (PhotosDAO dao = new PhotosDAO()) {
-            ResultSet resultSet = dao.getConnection().createStatement().executeQuery("select * from " + tableForSave);
+            ResultSet resultSet = dao.getConnection().createStatement()
+                    .executeQuery("select * from " + dao.tableForSave + " where path like '" + PhotoDB.args.source + "%'");
             while (resultSet.next()) {
                 String path = resultSet.getString("path");
 
-                String folder = StringUtils.removeStart(path, "F:\\wireless\\Фото\\");
-
-                folder = StringUtils.removeStart(folder, "F:\\Фото\\");
-                folder = StringUtils.removeStart(folder, "F:\\Фото\\Фото\\");
-
-                folder = StringUtils.substringBeforeLast(folder, "\\");
+                String folder = new PhotoInfoBuilder().readFileInfo(Path.of(path), root).build().folder;
 
                 System.out.println(path + " -> " + folder);
 
                 dao.updateFolder(path, folder);
                 totalCount++;
-                //System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + totalCount + " Size:" + (totalSize >> 20) + "M " + photoInfo);
+                System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + totalCount);
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    static void scan(String source, String tableForSave) {
+    static void scan(String source) {
         startProcessing = System.currentTimeMillis();
         try (PhotosDAO dao = new PhotosDAO()) {
             processDir(dao, Path.of(source));
@@ -98,7 +96,7 @@ public class Scanner {
                     } else {
                         if (!skipFile(entry)) {
                             PhotoInfo photoInfo = new PhotoInfoBuilder()
-                                    .readFileInfo(entry)
+                                    .readFileInfo(entry, Path.of(PhotoDB.args.source))
                                     .readMetadata(entry, defaultEquipment)
                                     .readComments(entry)
                                     .addMD5(entry).build();
@@ -138,20 +136,22 @@ public class Scanner {
     static void copy(String dest) {
         startProcessing = System.currentTimeMillis();
         try (PhotosDAO dao = new PhotosDAO()) {
-            String sql = "select path, name, created, COALESCE (alias,equipment) equipment, md5, comment " +
+            String sql = "select path, name, created, COALESCE (alias,equipment) equipment, md5, comment, folder " +
                     "from photos_for_copy p left join equipments e using(equipment) " +
-                    "where destination is null and created is not null";
+                    "where destination is null";
             ResultSet resultSet = dao.getConnection().createStatement().executeQuery(sql);
             while (resultSet.next()) {
 
                 String path = resultSet.getString("path");
-                String name = resultSet.getString("path");
+                String name = resultSet.getString("name");
+                String folder = resultSet.getString("folder");
                 String created = resultSet.getString("created");
                 String equipment = resultSet.getString("equipment");
                 String comment = resultSet.getString("comment");
                 String sourceMD5 = resultSet.getString("md5");
 
-                Path destFile = copyFile(path, dest, name, created, equipment, comment, sourceMD5);
+
+                Path destFile = copyFile(path, dest, name, folder, created, equipment, comment, sourceMD5);
 
                 dao.getConnection().createStatement().executeUpdate("update photos set destination='" + destFile.toString() + "' where path='" + path + "'");
             }
@@ -160,13 +160,17 @@ public class Scanner {
         }
     }
 
-    private static Path copyFile(String path, String dest, String name, String created, String equipment, String comment, String sourceMD5) throws Exception {
+    private static Path copyFile(String path, String dest, String name, String folder, String created, String equipment, String comment, String sourceMD5) throws Exception {
 
-        String commentVal = comment != null ? "_" + comment : "";
-        String equipmentVal = equipment != null && !equipment.equals("unknown") ? "_" + equipment : "";
-        String dirName = created.substring(5, 7) + "_" + created.substring(8, 10) + equipmentVal + commentVal;
-
-        Path destDir = Path.of(dest, created.substring(0, 4), dirName);
+        Path destDir;
+        if (created != null) {
+            String commentVal = comment != null ? "_" + comment : "";
+            String equipmentVal = equipment != null && !equipment.equals("unknown") ? "_" + equipment : "";
+            String dirName = created.substring(5, 7) + "_" + created.substring(8, 10) + equipmentVal + commentVal;
+            destDir = Path.of(dest, created.substring(0, 4), dirName);
+        } else {
+            destDir = Path.of(dest, "Unsorted", folder);
+        }
 
         if (Files.notExists(destDir)) {
             Files.createDirectories(destDir);
@@ -180,7 +184,9 @@ public class Scanner {
 
         if (Files.notExists(destFile)) {
             Files.copy(sourceFile, destFile);
-            Files.setLastModifiedTime(destDir, FileTime.fromMillis(Utils.formatter.parse(created).getTime()));
+            if (created != null) {
+                Files.setLastModifiedTime(destDir, FileTime.fromMillis(Utils.formatter.parse(created).getTime()));
+            }
 
             System.out.println(((System.currentTimeMillis() - startProcessing) / 1000) + "s Copied: " + totalCount + " Size:" + (totalSize >> 20) + "M Files: " + sourceFile + " -> " + destFile);
         } else {
@@ -192,47 +198,5 @@ public class Scanner {
             System.out.println(((System.currentTimeMillis() - startProcessing) / 1000) + "s Checked: " + totalCount + " Size:" + (totalSize >> 20) + "M Files: " + sourceFile + " -> " + destFile);
         }
         return destFile;
-    }
-
-    public static Date dateFromPath(Path path) {
-
-        String year = "";
-        String month = "";
-        String day = "";
-        for (Path p : path) {
-            String str = p.toString();
-            year = "";
-            month = "";
-            day = "";
-            for (int i = 0; i < str.length(); i++) {
-                if (i >= 0 && i <= 3) {
-                    if (Character.isDigit(str.charAt(i))) {
-                        year += str.charAt(i);
-                    } else {
-                        break;
-                    }
-                }
-                if (i >= 5 && i <= 6) {
-                    if (Character.isDigit(str.charAt(i))) {
-                        month += str.charAt(i);
-                    } else {
-                        break;
-                    }
-                }
-                if (i >= 8 && i <= 9) {
-                    if (Character.isDigit(str.charAt(i))) {
-                        day += str.charAt(i);
-                    } else {
-                        break;
-                    }
-                }
-                if (i == 9) {
-
-                    System.out.println(year + "-" + month + "-" + day);
-                    break;
-                }
-            }
-        }
-        return null;
     }
 }
