@@ -21,13 +21,15 @@ public class Scanner {
     private static final Set<Object> SKIP_EXT = Set.of("index", "txt", "ini",
             "info", "db", "amr", "ctg", "ithmb", "nri", "scn", "thm", "xml");
 
-    public static Long totalSize = 0L;
-    public static Long totalCount = 0L;
+    public Long totalSize = 0L;
+    public Long totalCount = 0L;
+    public Long startProcessing = 0L;
 
-    public static Long startProcessing = 0L;
-
-    static void rescanMeta() {
+    public Scanner() {
         startProcessing = System.currentTimeMillis();
+    }
+
+    public void rescanMeta() {
         try (PhotosDAO dao = new PhotosDAO()) {
             ResultSet resultSet = dao.getConnection().createStatement().executeQuery("select * from " + dao.tableForSave +
                     " where created is null");
@@ -50,10 +52,9 @@ public class Scanner {
         }
     }
 
-    public static void calculateFolder() {
+    public void calculateFolder() {
 
         Path root = Path.of(PhotoDB.args.source);
-        startProcessing = System.currentTimeMillis();
         try (PhotosDAO dao = new PhotosDAO()) {
             ResultSet resultSet = dao.getConnection().createStatement()
                     .executeQuery("select * from " + dao.tableForSave + " where path like '" + PhotoDB.args.source + "%'");
@@ -73,8 +74,7 @@ public class Scanner {
         }
     }
 
-    static void scan(String source) {
-        startProcessing = System.currentTimeMillis();
+    public void scan(String source) {
         try (PhotosDAO dao = new PhotosDAO()) {
             processDir(dao, Path.of(source));
         } catch (Exception e) {
@@ -82,7 +82,7 @@ public class Scanner {
         }
     }
 
-    private static void processDir(PhotosDAO dao, Path path) throws IOException, NoSuchAlgorithmException, SQLException {
+    private void processDir(PhotosDAO dao, Path path) throws IOException, NoSuchAlgorithmException, SQLException {
         String defaultEquipment = getDefaultEquipment(path);
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
             for (Path entry : stream) {
@@ -112,13 +112,13 @@ public class Scanner {
         }
     }
 
-    private static boolean skipFile(Path entry) {
+    private boolean skipFile(Path entry) {
         String name = entry.getFileName().toString();
         String ext = Utils.getFileExtension(name);
         return ext == null || SKIP_EXT.contains(ext) || name.startsWith(".");
     }
 
-    private static String getDefaultEquipment(Path path) throws IOException {
+    private String getDefaultEquipment(Path path) throws IOException {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
             for (Path entry : stream) {
                 if (!skipFile(entry)) {
@@ -133,8 +133,7 @@ public class Scanner {
         return null;
     }
 
-    static void copy(String dest) {
-        startProcessing = System.currentTimeMillis();
+    public void copy(String dest) {
         try (PhotosDAO dao = new PhotosDAO()) {
             String sql = "select path, name, created, COALESCE (alias,equipment) equipment, md5, comment, folder " +
                     "from photos_for_copy p left join equipments e using(equipment) " +
@@ -160,7 +159,7 @@ public class Scanner {
         }
     }
 
-    private static Path copyFile(String path, String dest, String name, String folder, String created, String equipment, String comment, String sourceMD5) throws Exception {
+    private Path copyFile(String path, String dest, String name, String folder, String created, String equipment, String comment, String sourceMD5) throws Exception {
 
         Path destDir;
         if (created != null) {

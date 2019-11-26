@@ -37,16 +37,16 @@ public class PhotoDB {
 
         switch (PhotoDB.args.cmd) {
             case "scan":
-                Scanner.scan(PhotoDB.args.source);
+                new Scanner().scan(PhotoDB.args.source);
                 break;
             case "rescanMeta":
-                Scanner.rescanMeta();
+                new Scanner().rescanMeta();
                 break;
             case "copy":
-                Scanner.copy(PhotoDB.args.dest);
+                new Scanner().copy(PhotoDB.args.dest);
                 break;
             case "calculateFolder":
-                Scanner.calculateFolder();
+                new Scanner().calculateFolder();
                 break;
             default:
                 System.out.println("Unknown command: " + PhotoDB.args.cmd);

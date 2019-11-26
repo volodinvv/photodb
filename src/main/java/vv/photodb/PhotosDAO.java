@@ -1,6 +1,8 @@
 package vv.photodb;
 
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.function.Consumer;
 
 public class PhotosDAO implements AutoCloseable {
 
@@ -53,6 +55,17 @@ public class PhotosDAO implements AutoCloseable {
         st.setString(1, folder);
         st.setString(2, path);
         st.executeUpdate();
+    }
+
+    public void list(String filter, Consumer<? super PhotoInfo> action) throws SQLException {
+        ResultSet resultSet = getConnection().createStatement().executeQuery("select * from " + tableForSave +
+                " where created is null");
+        while (resultSet.next()) {
+            String path = resultSet.getString("path");
+            String defaultEquipment = resultSet.getString("equipment");
+            PhotoInfo info = new PhotoInfo();
+            action.accept(info);
+        }
     }
 
     @Override
