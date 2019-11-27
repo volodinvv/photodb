@@ -152,7 +152,7 @@ public class Scanner {
 
                 Path destFile = copyFile(path, dest, name, folder, created, equipment, comment, sourceMD5);
 
-                dao.getConnection().createStatement().executeUpdate("update photos set destination='" + destFile.toString() + "' where path='" + path + "'");
+                dao.getConnection().createStatement().executeUpdate("update photos set destination='" + destFile.toString().replace("\'","\'\'") + "' where path='" + path.replace("\'","\'\'") + "'");
             }
         } catch (Exception e) {
             e.printStackTrace();
