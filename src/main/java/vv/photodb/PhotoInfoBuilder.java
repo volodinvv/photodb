@@ -105,12 +105,18 @@ public class PhotoInfoBuilder {
         photoInfo.name = file.getName();
         photoInfo.ext = Utils.getFileExtension(file.getName());
         photoInfo.size = file.length();
-        photoInfo.folder = root.relativize(entry.getParent()).toString();
+        if (root != null) {
+            photoInfo.folder = root.relativize(entry.getParent()).toString();
+        }
         return this;
     }
 
-    public PhotoInfoBuilder addMD5(Path entry) throws IOException, NoSuchAlgorithmException {
-        photoInfo.md5 = Utils.MD5(entry);
-        return this;
+    public PhotoInfoBuilder addMD5(Path entry) {
+        try {
+            photoInfo.md5 = Utils.MD5(entry);
+            return this;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

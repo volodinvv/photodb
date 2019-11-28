@@ -31,11 +31,9 @@ public class Scanner {
 
     public void rescanMeta() {
         try (PhotosDAO dao = new PhotosDAO()) {
-            ResultSet resultSet = dao.getConnection().createStatement().executeQuery("select * from " + dao.tableForSave +
-                    " where created is null");
-            while (resultSet.next()) {
-                String path = resultSet.getString("path");
-                String defaultEquipment = resultSet.getString("equipment");
+            dao.list(" where created is null", resultSet -> {
+                String path = dao.getString(resultSet, "path");
+                String defaultEquipment = dao.getString(resultSet, "equipment");
                 Path entry = Path.of(path);
                 PhotoInfo photoInfo = new PhotoInfoBuilder()
                         .readFileInfo(entry, null)
@@ -44,31 +42,24 @@ public class Scanner {
                         .addMD5(entry).build();
                 dao.save(photoInfo);
                 totalSize += photoInfo.size;
-                totalCount++;
-                System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + totalCount + " Size:" + (totalSize >> 20) + "M " + photoInfo);
-            }
+                System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + ++totalCount + " Size:" + (totalSize >> 20) + "M " + photoInfo);
+            });
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     public void calculateFolder() {
-
         Path root = Path.of(PhotoDB.args.source);
         try (PhotosDAO dao = new PhotosDAO()) {
-            ResultSet resultSet = dao.getConnection().createStatement()
-                    .executeQuery("select * from " + dao.tableForSave + " where path like '" + PhotoDB.args.source + "%'");
-            while (resultSet.next()) {
-                String path = resultSet.getString("path");
-
+            dao.list(" where path like '" + dao.escape(PhotoDB.args.source) + "%'", resultSet -> {
+                String path = dao.getString(resultSet, "path");
                 String folder = new PhotoInfoBuilder().readFileInfo(Path.of(path), root).build().folder;
-
                 System.out.println(path + " -> " + folder);
 
                 dao.updateFolder(path, folder);
-                totalCount++;
-                System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + totalCount);
-            }
+                System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + ++totalCount);
+            });
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -82,7 +73,7 @@ public class Scanner {
         }
     }
 
-    private void processDir(PhotosDAO dao, Path path) throws IOException, NoSuchAlgorithmException, SQLException {
+    private void processDir(PhotosDAO dao, Path path) throws IOException, SQLException {
         String defaultEquipment = getDefaultEquipment(path);
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
             for (Path entry : stream) {
@@ -152,7 +143,7 @@ public class Scanner {
 
                 Path destFile = copyFile(path, dest, name, folder, created, equipment, comment, sourceMD5);
 
-                dao.getConnection().createStatement().executeUpdate("update photos set destination='" + destFile.toString().replace("\'","\'\'") + "' where path='" + path.replace("\'","\'\'") + "'");
+                dao.getConnection().createStatement().executeUpdate("update photos set destination='" + destFile.toString().replace("\'", "\'\'") + "' where path='" + path.replace("\'", "\'\'") + "'");
             }
         } catch (Exception e) {
             e.printStackTrace();
