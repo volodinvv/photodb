@@ -2,18 +2,14 @@ package vv.photodb;
 
 import com.drew.imaging.ImageMetadataReader;
 import com.drew.metadata.exif.ExifIFD0Directory;
-import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
-import java.security.NoSuchAlgorithmException;
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Date;
 import java.util.Set;
 
 public class Scanner {

@@ -3,10 +3,6 @@ package vv.photodb;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-
 /**
  *
  */

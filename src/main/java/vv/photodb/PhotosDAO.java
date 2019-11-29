@@ -1,7 +1,6 @@
 package vv.photodb;
 
 import java.sql.*;
-import java.util.ArrayList;
 import java.util.function.Consumer;
 
 public class PhotosDAO implements AutoCloseable {
@@ -15,7 +14,7 @@ public class PhotosDAO implements AutoCloseable {
         tableForSave = PhotoDB.args.table;
     }
 
-    public Connection getConnection() throws SQLException {
+    public Connection getConnection()  {
         return conn;
     }
 

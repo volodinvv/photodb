@@ -4,21 +4,18 @@ import com.drew.imaging.ImageMetadataReader;
 import com.drew.metadata.avi.AviDirectory;
 import com.drew.metadata.exif.ExifIFD0Directory;
 import com.drew.metadata.exif.ExifSubIFDDirectory;
-import com.drew.metadata.file.FileSystemDirectory;
 import com.drew.metadata.mov.QuickTimeDirectory;
 import com.drew.metadata.mov.metadata.QuickTimeMetadataDirectory;
 import com.drew.metadata.mp4.Mp4Directory;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Path;
-import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.TimeZone;
 
 public class PhotoInfoBuilder {
-    private PhotoInfo photoInfo = new PhotoInfo();
+    private final PhotoInfo photoInfo = new PhotoInfo();
 
     public PhotoInfoBuilder readComments(Path entry) {
         photoInfo.comment = readComment(entry.getParent().getFileName().toString());
