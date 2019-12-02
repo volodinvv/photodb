@@ -23,9 +23,10 @@ INSERT INTO equipments (equipment, alias) VALUES('SLT-A33', 'camera');
 INSERT INTO equipments (equipment, alias) VALUES('SM-A520F', 'SamsungA5');
 INSERT INTO equipments (equipment, alias) VALUES('unknown', 'unknown');
 
-drop view photos_for_copy
+drop VIEW photos_for_copy
 
 CREATE VIEW photos_for_copy
-as select md5 , size, min("path") path, min(created) created, max(equipment) equipment, max(comment) comment, max(folder) folder,
+as select md5 , size, min("path") path,  min("ext") ext,  min(created) created, max(equipment) equipment,
+  max(comment) comment, max(folder) folder,
 case when length(max(name))<length(min(name)) then max(name) else min(name) end name, max (destination) destination from photos p  GROUP by md5,"size";
 

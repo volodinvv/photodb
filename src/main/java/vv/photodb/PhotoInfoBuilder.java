@@ -15,7 +15,14 @@ import java.util.Date;
 import java.util.TimeZone;
 
 public class PhotoInfoBuilder {
-    private final PhotoInfo photoInfo = new PhotoInfo();
+    private  PhotoInfo photoInfo = new PhotoInfo();
+
+    public PhotoInfoBuilder() {
+    }
+
+    public PhotoInfoBuilder(PhotoInfo photoInfo) {
+        this.photoInfo = photoInfo;
+    }
 
     public PhotoInfoBuilder readComments(Path entry) {
         photoInfo.comment = readComment(entry.getParent().getFileName().toString());
@@ -44,9 +51,8 @@ public class PhotoInfoBuilder {
     public PhotoInfoBuilder readMetadata(Path entry, String defaultEquipment) {
         photoInfo.equipment = defaultEquipment;
         try {
-
             com.drew.metadata.Metadata metadata = ImageMetadataReader.readMetadata(entry.toFile());
-            if (entry.toFile().getName().endsWith("JPG")) {
+            if (entry.toFile().getName().endsWith("xxx")) {
                 metadata.getDirectories().forEach(d -> {
                     System.out.println(d.getName() + " " + d.getClass());
                     d.getTags().forEach(t -> System.out.println("\t" + t.getTagTypeHex() + " : " + t.toString()));
