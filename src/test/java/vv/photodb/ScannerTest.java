@@ -17,9 +17,9 @@ public class ScannerTest {
 
     @Test
     public void close() throws SQLException {
-        Scanner scanner = new Scanner();
+        //Scanner scanner = new Scanner();
 
-        scanner.dao = Mockito.mock(PhotosDAO.class);
+        //scanner.dao = Mockito.mock(PhotosDAO.class);
 
     }
 
