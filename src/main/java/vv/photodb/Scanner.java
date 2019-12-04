@@ -128,7 +128,7 @@ public class Scanner {
         try (PhotosDAO dao = new PhotosDAO()) {
             String sql = "select path, name, created, COALESCE (alias,equipment) equipment, md5, comment, folder " +
                     "from photos_for_copy p left join equipments e using(equipment) " +
-                    "where destination is null";
+                    "where destination is null order by created";
             ResultSet resultSet = dao.getConnection().createStatement().executeQuery(sql);
             while (resultSet.next()) {
 
@@ -152,15 +152,20 @@ public class Scanner {
 
     private Path copyFile(String path, String dest, String name, String folder, String created, String equipment, String comment, String sourceMD5) throws Exception {
 
+        Path destRootDir = Path.of(dest);
+        Path destSubDir;
         Path destDir;
         if (created != null) {
             String commentVal = comment != null ? "_" + comment : "";
             String equipmentVal = equipment != null && !equipment.equals("unknown") ? "_" + equipment : "";
             String dirName = created.substring(5, 7) + "_" + created.substring(8, 10) + equipmentVal + commentVal;
-            destDir = Path.of(dest, created.substring(0, 4), dirName);
+            destSubDir = Path.of(created.substring(0, 4), dirName);
         } else {
-            destDir = Path.of(dest, "Unsorted", folder);
+            destSubDir = Path.of("Unsorted", folder);
         }
+
+        destDir = destRootDir.resolve(destSubDir);
+
 
         if (Files.notExists(destDir)) {
             Files.createDirectories(destDir);
@@ -172,6 +177,11 @@ public class Scanner {
         totalSize += sourceFile.toFile().length();
         totalCount++;
 
+        if (Files.notExists(sourceFile)) {
+            System.out.println("File not exist: " + sourceFile);
+            return null;
+        }
+
         if (Files.notExists(destFile)) {
             Files.copy(sourceFile, destFile);
             if (created != null) {
@@ -182,9 +192,20 @@ public class Scanner {
         } else {
             String destMD5 = Utils.MD5(destFile);
             if (!destMD5.equals(sourceMD5)) {
-                throw new Exception("MD5 not equals: " + sourceFile + " -> " + destFile);
-            }
 
+                Path destMD5ErrorDir = destRootDir.resolve("MD5Error").resolve(destSubDir);
+                if (Files.notExists(destMD5ErrorDir)) {
+                    Files.createDirectories(destMD5ErrorDir);
+                }
+
+                destFile = destMD5ErrorDir.resolve(name);
+                Files.copy(sourceFile, destFile);
+                if (created != null) {
+                    Files.setLastModifiedTime(destDir, FileTime.fromMillis(Utils.formatter.parse(created).getTime()));
+                }
+                System.out.println("MD5 not equals: " + sourceFile + " -> " + destFile + "(" + destMD5ErrorDir + ")");
+
+            }
             System.out.println(((System.currentTimeMillis() - startProcessing) / 1000) + "s Checked: " + totalCount + " Size:" + (totalSize >> 20) + "M Files: " + sourceFile + " -> " + destFile);
         }
         return destFile;
