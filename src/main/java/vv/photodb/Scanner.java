@@ -30,7 +30,7 @@ public class Scanner implements AutoCloseable {
 
     public PhotosDAO dao;
 
-    public Scanner() throws SQLException {
+    public Scanner() {
         startProcessing = System.currentTimeMillis();
         dao = new PhotosDAO();
     }

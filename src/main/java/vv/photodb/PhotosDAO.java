@@ -9,20 +9,22 @@ import java.util.function.Consumer;
 public class PhotosDAO implements AutoCloseable {
 
     private Connection conn;
-    public String tableForSave;
+    private final String tableForSave;
 
-    public PhotosDAO() throws SQLException {
-        conn = DriverManager.getConnection("jdbc:sqlite:D:/Private/PhotoDB/db/photodb");
-        //conn = DriverManager.getConnection("jdbc:sqlite:D:/Private/PhotoDB/home/photodb");
+    public PhotosDAO() {
         tableForSave = PhotoDB.args.table;
     }
 
-    public Connection getConnection() {
+    private Connection getConnection() throws SQLException {
+        if (conn == null) {
+            conn = DriverManager.getConnection("jdbc:sqlite:D:/Private/PhotoDB/db/photodb");
+            //conn = DriverManager.getConnection("jdbc:sqlite:D:/Private/PhotoDB/home/photodb");
+        }
         return conn;
     }
 
     public boolean isSaved(String path) throws SQLException {
-        try (ResultSet resultSet = conn.createStatement().executeQuery("select * from " + tableForSave + " where path='" + path.replace("'", "''") + "'")) {
+        try (ResultSet resultSet = getConnection().createStatement().executeQuery("select * from " + tableForSave + " where path='" + path.replace("'", "''") + "'")) {
             return resultSet.next();
         }
     }
@@ -30,7 +32,7 @@ public class PhotosDAO implements AutoCloseable {
 
     public void save(PhotoInfo photoInfo) {
         try {
-            PreparedStatement st = conn.prepareStatement("INSERT INTO " + tableForSave +
+            PreparedStatement st = getConnection().prepareStatement("INSERT INTO " + tableForSave +
                     " (path, name, folder, ext, size, created, md5, equipment, comment) " +
                     "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(path) DO " +
                     "update set created = ?, md5 = ?, equipment = ?, comment = ?, comment = ?, destination = ?");
@@ -77,10 +79,10 @@ public class PhotosDAO implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        conn.close();
+        getConnection().close();
     }
 
-    public String getString(ResultSet resultSet, String name) {
+    private String getString(ResultSet resultSet, String name) {
         try {
             return resultSet.getString(name);
         } catch (SQLException e) {
@@ -88,7 +90,8 @@ public class PhotosDAO implements AutoCloseable {
         }
     }
 
-    public Long getLong(ResultSet resultSet, String name) {
+    @SuppressWarnings("SameParameterValue")
+    private Long getLong(ResultSet resultSet, String name) {
         try {
             return resultSet.getLong(name);
         } catch (SQLException e) {
@@ -100,7 +103,7 @@ public class PhotosDAO implements AutoCloseable {
         return source.replace("\'", "\'\'");
     }
 
-    public PhotoInfo getPhotoInfo(ResultSet resultSet) {
+    private PhotoInfo getPhotoInfo(ResultSet resultSet) {
         PhotoInfo photoInfo = new PhotoInfo();
         photoInfo.path = getString(resultSet, "path");
         photoInfo.name = getString(resultSet, "name");
@@ -115,6 +118,7 @@ public class PhotosDAO implements AutoCloseable {
         return photoInfo;
     }
 
+    @SuppressWarnings("SameParameterValue")
     private Date getDate(ResultSet resultSet, String name) {
         String str = getString(resultSet, name);
         try {
