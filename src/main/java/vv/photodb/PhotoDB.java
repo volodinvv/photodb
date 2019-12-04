@@ -3,10 +3,6 @@ package vv.photodb;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-
 /**
  *
  */
@@ -14,7 +10,7 @@ public class PhotoDB {
 
     public static class Args {
         @Parameter(names = "-cmd")
-        public String cmd = "scan";
+        public String cmd = null;
 
         @Parameter(names = "-dest")
         public String dest = ".";
@@ -35,22 +31,25 @@ public class PhotoDB {
 
         new JCommander(PhotoDB.args).parse(args);
 
-        switch (PhotoDB.args.cmd) {
-            case "scan":
-                new Scanner().scan(PhotoDB.args.source);
-                break;
-            case "rescanMeta":
-                new Scanner().rescanMeta();
-                break;
-            case "copy":
-                new Scanner().copy(PhotoDB.args.dest);
-                break;
-            case "calculateFolder":
-                new Scanner().calculateFolder();
-                break;
-            default:
-                System.out.println("Unknown command: " + PhotoDB.args.cmd);
+        try (Scanner scanner = new Scanner()) {
+            switch (PhotoDB.args.cmd) {
+                case "scan":
+                    scanner.scan(PhotoDB.args.source);
+                    break;
+                case "rescanMeta":
+                    scanner.rescanMeta();
+                    break;
+                case "copy":
+                    scanner.copy(PhotoDB.args.dest);
+                    break;
+                case "calculateFolder":
+                    scanner.calculateFolder(PhotoDB.args.source);
+                    break;
+                default:
+                    System.out.println("Unknown command: " + PhotoDB.args.cmd);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
-
 }
