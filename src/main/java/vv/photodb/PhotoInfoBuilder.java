@@ -49,7 +49,7 @@ public class PhotoInfoBuilder {
         try {
 
             com.drew.metadata.Metadata metadata = ImageMetadataReader.readMetadata(entry.toFile());
-            if (entry.toFile().getName().endsWith("JPG")) {
+            if (entry.toFile().getName().endsWith("jpg")) {
                 metadata.getDirectories().forEach(d -> {
                     System.out.println(d.getName() + " " + d.getClass());
                     d.getTags().forEach(t -> System.out.println("\t" + t.getTagTypeHex() + " : " + t.toString()));
@@ -66,6 +66,10 @@ public class PhotoInfoBuilder {
             if (metadata.containsDirectoryOfType(ExifSubIFDDirectory.class)) {
                 photoInfo.createDate = metadata.getFirstDirectoryOfType(ExifSubIFDDirectory.class).getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL);
             }
+            if (photoInfo.createDate == null && metadata.containsDirectoryOfType(ExifIFD0Directory.class)) {
+                photoInfo.createDate = metadata.getFirstDirectoryOfType(ExifIFD0Directory.class).getDate(ExifIFD0Directory.TAG_DATETIME);
+            }
+
             if (metadata.containsDirectoryOfType(ExifIFD0Directory.class)) {
                 photoInfo.equipment = metadata.getFirstDirectoryOfType(ExifIFD0Directory.class).getString(0x0110);
             }
@@ -118,5 +122,9 @@ public class PhotoInfoBuilder {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static void main(String[] args) {
+        System.out.println(new PhotoInfoBuilder().readMetadata(Path.of("F:\\Photos\\Unsorted\\A5 20180530\\Camera", "20180221_101159.jpg"), null).build());
     }
 }
