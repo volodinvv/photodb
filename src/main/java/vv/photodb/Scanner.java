@@ -21,7 +21,7 @@ import java.util.TimeZone;
 public class Scanner implements AutoCloseable {
 
     private static final Set<Object> SKIP_EXT = Set.of("index", "txt", "ini",
-            "info", "db", "amr", "ctg", "ithmb", "nri", "scn", "thm", "xml");
+            "info", "db", "amr", "ctg", "ithmb", "nri", "scn", "thm", "xml", "json");
 
     public Long totalSize = 0L;
     public Long totalCount = 0L;
@@ -130,6 +130,8 @@ public class Scanner implements AutoCloseable {
     }
 
     private Path copyFile(PhotoInfo item, String dest) throws Exception {
+        Path destRootDir = Path.of(dest);
+        Path destSubDir;
         Path destDir;
         if (item.createDate != null) {
             LocalDate createdDate = item.createDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
@@ -140,10 +142,12 @@ public class Scanner implements AutoCloseable {
             String commentVal = item.comment != null ? "_" + item.comment : "";
             String equipmentVal = item.equipment != null && !item.equipment.equals("unknown") ? "_" + item.equipment : "";
 
-            destDir = Path.of(dest, year, month + "_" + day + equipmentVal + commentVal);
+            destSubDir = Path.of(dest, year, month + "_" + day + equipmentVal + commentVal);
         } else {
-            destDir = Path.of(dest, "Unsorted", item.folder);
+            destSubDir = Path.of(dest, "Unsorted", item.folder);
         }
+
+        destDir = destRootDir.resolve(destSubDir);
 
         if (Files.notExists(destDir)) {
             Files.createDirectories(destDir);
@@ -169,21 +173,22 @@ public class Scanner implements AutoCloseable {
             System.out.println(((System.currentTimeMillis() - startProcessing) / 1000) + "s Copied: " + totalCount + " Size:" + (totalSize >> 20) + "M Files: " + sourceFile + " -> " + destFile);
         } else {
             String destMD5 = Utils.MD5(destFile);
-            if (!destMD5.equals(sourceMD5)) {
+            if (!destMD5.equals(item.md5)) {
 
                 Path destMD5ErrorDir = destRootDir.resolve("MD5Error").resolve(destSubDir);
                 if (Files.notExists(destMD5ErrorDir)) {
                     Files.createDirectories(destMD5ErrorDir);
                 }
 
-                destFile = destMD5ErrorDir.resolve(name);
+                destFile = destMD5ErrorDir.resolve(item.name);
                 Files.copy(sourceFile, destFile);
-                if (created != null) {
-                    Files.setLastModifiedTime(destDir, FileTime.fromMillis(Utils.formatter.parse(created).getTime()));
+                if (item.createDate != null) {
+                    Files.setLastModifiedTime(destDir, FileTime.fromMillis(item.createDate.getTime()));
                 }
                 System.out.println("MD5 not equals: " + sourceFile + " -> " + destFile + "(" + destMD5ErrorDir + ")");
 
-            System.out.println(((System.currentTimeMillis() - startProcessing) / 1000) + "s Checked: " + totalCount + " Size:" + (totalSize >> 20) + "M Files: " + sourceFile + " -> " + destFile);
+                System.out.println(((System.currentTimeMillis() - startProcessing) / 1000) + "s Checked: " + totalCount + " Size:" + (totalSize >> 20) + "M Files: " + sourceFile + " -> " + destFile);
+            }
         }
         return destFile;
     }

@@ -52,7 +52,7 @@ public class PhotoInfoBuilder {
         photoInfo.equipment = defaultEquipment;
         try {
             com.drew.metadata.Metadata metadata = ImageMetadataReader.readMetadata(entry.toFile());
-            if (entry.toFile().getName().endsWith("jpg")) {
+            if (entry.toFile().getName().endsWith("xxx")) {
                 metadata.getDirectories().forEach(d -> {
                     System.out.println(d.getName() + " " + d.getClass());
                     d.getTags().forEach(t -> System.out.println("\t" + t.getTagTypeHex() + " : " + t.toString()));
