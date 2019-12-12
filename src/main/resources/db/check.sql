@@ -28,6 +28,7 @@ select * from photos p WHERE name='IMG_0373.JPG'
 ---- equipmnets
 
 select equipment, count(*), sum(size) from photos p where 1=1 group by equipment order by 2
+
 update photos set comment='xxx' where equipment='Canon PowerShot A630' and comment is null
 select * from photos p where equipment='NIKON D3' ---?????
 select * from photos p where equipment='Canon PowerShot SX200 IS' --?????

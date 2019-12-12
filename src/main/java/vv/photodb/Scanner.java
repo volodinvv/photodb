@@ -122,7 +122,7 @@ public class Scanner implements AutoCloseable {
         dao.listForCopy(item -> {
             try {
                 Path destFile = copyFile(item, dest);
-                dao.updateDestination(item.path, destFile);
+                dao.updateDestination(item, destFile.toString());
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -191,5 +191,26 @@ public class Scanner implements AutoCloseable {
             }
         }
         return destFile;
+    }
+
+    @Deprecated
+    public void updateDest() throws SQLException {
+        dao.list(" where destination is not null", old -> {
+            try {
+                dao.updateDestination(old, old.destination);
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+            System.out.println(old.path + " -> " + old.folder);
+            System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + ++totalCount);
+        });
+    }
+
+    public void deleteSource() throws SQLException {
+        dao.list(" where destination is not null", item -> {
+
+
+
+        });
     }
 }

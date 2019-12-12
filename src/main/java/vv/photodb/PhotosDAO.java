@@ -17,8 +17,8 @@ public class PhotosDAO implements AutoCloseable {
 
     private Connection getConnection() throws SQLException {
         if (conn == null) {
-            conn = DriverManager.getConnection("jdbc:sqlite:D:/Private/PhotoDB/db/photodb");
-            //conn = DriverManager.getConnection("jdbc:sqlite:D:/Private/PhotoDB/home/photodb");
+            //conn = DriverManager.getConnection("jdbc:sqlite:D:/Private/PhotoDB/db/photodb");
+            conn = DriverManager.getConnection("jdbc:sqlite:D:/Private/PhotoDB/home/photodb");
         }
         return conn;
     }
@@ -110,7 +110,7 @@ public class PhotosDAO implements AutoCloseable {
         photoInfo.ext = getString(resultSet, "ext");
         photoInfo.equipment = getString(resultSet, "equipment");
         photoInfo.folder = getString(resultSet, "folder");
-        photoInfo.createDate = getDate(resultSet, "createDate");
+        photoInfo.createDate = getDate(resultSet, "created");
         photoInfo.comment = getString(resultSet, "comment");
         photoInfo.md5 = getString(resultSet, "md5");
         photoInfo.size = getLong(resultSet, "size");
@@ -128,8 +128,12 @@ public class PhotosDAO implements AutoCloseable {
         }
     }
 
-    public void updateDestination(String path, Path destFile) throws SQLException {
-        getConnection().createStatement().executeUpdate("update photos set destination='" + escape(destFile.toString()) + "' where path='" + escape(path) + "'");
-
+    public void updateDestination(PhotoInfo item, String destFile) throws SQLException {
+        getConnection().createStatement().executeUpdate("update photos set destination='" + escape(destFile) + "' " +
+                "where path='" + escape(item.path) + "'");
+        getConnection().createStatement().executeUpdate("update photos set destination='" + escape(destFile) + "' " +
+                "where size=" + item.size + " and md5='" + item.md5+"'");
     }
+
+
 }

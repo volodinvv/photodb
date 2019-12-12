@@ -42,8 +42,8 @@ public class PhotoDB {
                 case "copy":
                     scanner.copy(PhotoDB.args.dest);
                     break;
-                case "calculateFolder":
-                    scanner.calculateFolder(PhotoDB.args.source);
+                case "updateDest":
+                    scanner.updateDest();
                     break;
                 default:
                     System.out.println("Unknown command: " + PhotoDB.args.cmd);
