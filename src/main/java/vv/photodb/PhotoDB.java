@@ -45,6 +45,9 @@ public class PhotoDB {
                 case "updateDest":
                     scanner.updateDest();
                     break;
+                case "deleteSource":
+                    scanner.deleteSource();
+                    break;
                 default:
                     System.out.println("Unknown command: " + PhotoDB.args.cmd);
             }

@@ -209,8 +209,22 @@ public class Scanner implements AutoCloseable {
     public void deleteSource() throws SQLException {
         dao.list(" where destination is not null", item -> {
 
+            if (Files.exists(Path.of(item.path))) {
+                if (Files.exists(Path.of(item.destination))) {
+                    if (Utils.equalsFiles(item.path, item.destination)) {
+                        System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Delete: " + item.path);
+// delete record
+// delete file
 
-
+                    }
+                } else {
+                    // error
+                }
+            } else {
+                // skip row
+            }
         });
     }
+
+
 }

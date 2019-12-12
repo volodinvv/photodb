@@ -17,8 +17,8 @@ public class PhotosDAO implements AutoCloseable {
 
     private Connection getConnection() throws SQLException {
         if (conn == null) {
-            //conn = DriverManager.getConnection("jdbc:sqlite:D:/Private/PhotoDB/db/photodb");
-            conn = DriverManager.getConnection("jdbc:sqlite:D:/Private/PhotoDB/home/photodb");
+            conn = DriverManager.getConnection("jdbc:sqlite:D:/Private/PhotoDB/db/photodb");
+            //conn = DriverManager.getConnection("jdbc:sqlite:D:/Private/PhotoDB/home/photodb");
         }
         return conn;
     }
@@ -67,7 +67,7 @@ public class PhotosDAO implements AutoCloseable {
     }
 
     public void listForCopy(Consumer<? super PhotoInfo> action) throws SQLException {
-        String sql = "select path, name, ext, size, created as createDate, COALESCE (alias,equipment) equipment, md5, comment, folder, destination " +
+        String sql = "select path, name, ext, size, created as created, COALESCE (alias,equipment) equipment, md5, comment, folder, destination " +
                 "from photos_for_copy p left join equipments e using(equipment) " +
                 "where destination is null";
         ResultSet resultSet = getConnection().createStatement().executeQuery(sql);

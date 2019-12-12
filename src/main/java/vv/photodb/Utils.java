@@ -1,5 +1,8 @@
 package vv.photodb;
 
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -42,4 +45,30 @@ public class Utils {
         }
         return null;
     }
+
+    public static boolean equalsFiles(String file1, String file2) {
+        long start = System.nanoTime();
+        try (BufferedInputStream fis1 = new BufferedInputStream(new FileInputStream(file1));
+             BufferedInputStream fis2 = new BufferedInputStream(new FileInputStream(file2));) {
+            int b1 = 0, b2 = 0, pos = 1;
+            while (b1 != -1 && b2 != -1) {
+                if (b1 != b2) {
+                    System.out.println("Files differ at position " + pos + ": " + file1 + " != " + file2);
+                    return false;
+                }
+                pos++;
+                b1 = fis1.read();
+                b2 = fis2.read();
+            }
+            if (b1 != b2) {
+                System.out.println("Files have different length: " + file1 + " != " + file2);
+                return false;
+            } else {
+                return true;
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 }
