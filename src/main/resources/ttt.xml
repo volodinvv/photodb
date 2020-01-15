@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>​
+<ExrResponse>​
+    <Header id="2398" version="1.0">​
+        <Application name="WebExr" version="1.0" currentTime="02/19/16 16:06:20">​
+            <Server>​
+                <Host type="WebServer">pumas3</Host>​
+            </Server>
+        </Application>
+    </Header>
+    <Body>​
+        <ErResponse>​
+            <ExchResults>15,0,1440</ExchResults>​
+            <retCode>0</retCode>​
+            <ExchEntResults>T,O,N</ExchEntResults>​
+            <CompanyId>CTT</CompanyId>​
+            <LogicalAddress>LY</LogicalAddress>​
+            <LoginID>QAPS01T</LoginID>​
+        </ErResponse>
+    </Body>
+</ExrResponse>

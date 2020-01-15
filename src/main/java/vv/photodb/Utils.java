@@ -2,13 +2,14 @@ package vv.photodb;
 
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Base64;
 import java.util.Locale;
@@ -68,6 +69,23 @@ public class Utils {
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    public static void findEmptyFolders(Path root) {
+
+
+    }
+
+    private void processDir(PhotosDAO dao, Path path) throws IOException, SQLException {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
+            for (Path entry : stream) {
+                if (Files.isDirectory(entry)) {
+                    processDir(dao, entry);
+                } else {
+
+                }
+            }
         }
     }
 
