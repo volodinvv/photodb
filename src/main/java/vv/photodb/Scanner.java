@@ -124,7 +124,7 @@ public class Scanner implements AutoCloseable {
                 Path destFile = copyFile(item, dest);
                 dao.updateDestination(item, destFile.toString());
             } catch (Exception e) {
-                throw new RuntimeException(e);
+                //throw new RuntimeException(e);
             }
         });
     }
@@ -142,9 +142,9 @@ public class Scanner implements AutoCloseable {
             String commentVal = item.comment != null ? "_" + item.comment : "";
             String equipmentVal = item.equipment != null && !item.equipment.equals("unknown") ? "_" + item.equipment : "";
 
-            destSubDir = Path.of(dest, year, month + "_" + day + equipmentVal + commentVal);
+            destSubDir = Path.of( year, month + "_" + day + equipmentVal + commentVal);
         } else {
-            destSubDir = Path.of(dest, "Unsorted", item.folder);
+            destSubDir = Path.of( "Unsorted", item.folder);
         }
 
         destDir = destRootDir.resolve(destSubDir);

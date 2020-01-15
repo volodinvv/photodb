@@ -69,7 +69,7 @@ public class PhotosDAO implements AutoCloseable {
     public void listForCopy(Consumer<? super PhotoInfo> action) throws SQLException {
         String sql = "select path, name, ext, size, created as created, COALESCE (alias,equipment) equipment, md5, comment, folder, destination " +
                 "from photos_for_copy p left join equipments e using(equipment) " +
-                "where destination is null";
+                "where destination is null order by created";
         ResultSet resultSet = getConnection().createStatement().executeQuery(sql);
         while (resultSet.next()) {
             action.accept(getPhotoInfo(resultSet));
