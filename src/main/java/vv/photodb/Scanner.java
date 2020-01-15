@@ -3,22 +3,22 @@ package vv.photodb;
 import com.drew.imaging.ImageMetadataReader;
 import com.drew.metadata.exif.ExifIFD0Directory;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.time.DateUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.Calendar;
 import java.util.Set;
-import java.util.TimeZone;
 
 public class Scanner implements AutoCloseable {
+
+    Logger logger = LoggerFactory.getLogger(Scanner.class);
 
     private static final Set<Object> SKIP_EXT = Set.of("index", "txt", "ini",
             "info", "db", "amr", "ctg", "ithmb", "nri", "scn", "thm", "xml", "json");
@@ -49,7 +49,7 @@ public class Scanner implements AutoCloseable {
                     .build();
             dao.save(photoInfo);
             totalSize += photoInfo.size;
-            System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + ++totalCount + " Size:" + (totalSize >> 20) + "M " + photoInfo);
+            logger.info("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + ++totalCount + " Size:" + (totalSize >> 20) + "M " + photoInfo);
         });
     }
 
@@ -58,8 +58,8 @@ public class Scanner implements AutoCloseable {
         Path root = Path.of(rootDir);
         dao.list(" where path like '" + dao.escape(rootDir) + "%'", old -> {
             dao.save(new PhotoInfoBuilder(old).readFileInfo(Path.of(old.path), root).build());
-            System.out.println(old.path + " -> " + old.folder);
-            System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + ++totalCount);
+            logger.info(old.path + " -> " + old.folder);
+            logger.info("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + ++totalCount);
         });
     }
 
@@ -74,10 +74,10 @@ public class Scanner implements AutoCloseable {
                 if (Files.isDirectory(entry)) {
                     processDir(dao, entry);
                 } else {
-                    System.out.println(entry);
+                    logger.info("{}", entry);
                     if (PhotoDB.args.resume && dao.isSaved(entry.toString())) {
                         totalCount++;
-                        System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Skipped: " + totalCount + " Size:" + (totalSize >> 20) + "M " + entry);
+                        logger.info("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Skipped: " + totalCount + " Size:" + (totalSize >> 20) + "M " + entry);
                     } else {
                         if (allowableFile(entry)) {
                             PhotoInfo photoInfo = new PhotoInfoBuilder()
@@ -89,7 +89,7 @@ public class Scanner implements AutoCloseable {
                             totalSize += photoInfo.size;
                             totalCount++;
 
-                            System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + totalCount + " Size:" + (totalSize >> 20) + "M " + photoInfo);
+                            logger.info("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + totalCount + " Size:" + (totalSize >> 20) + "M " + photoInfo);
                         }
                     }
                 }
@@ -160,7 +160,7 @@ public class Scanner implements AutoCloseable {
         totalCount++;
 
         if (Files.notExists(sourceFile)) {
-            System.out.println("File not exist: " + sourceFile);
+            logger.info("File not exist: " + sourceFile);
             return null;
         }
 
@@ -170,7 +170,7 @@ public class Scanner implements AutoCloseable {
                 Files.setLastModifiedTime(destDir, FileTime.fromMillis(item.createDate.getTime()));
             }
 
-            System.out.println(((System.currentTimeMillis() - startProcessing) / 1000) + "s Copied: " + totalCount + " Size:" + (totalSize >> 20) + "M Files: " + sourceFile + " -> " + destFile);
+            logger.info(((System.currentTimeMillis() - startProcessing) / 1000) + "s Copied: " + totalCount + " Size:" + (totalSize >> 20) + "M Files: " + sourceFile + " -> " + destFile);
         } else {
             String destMD5 = Utils.MD5(destFile);
             if (!destMD5.equals(item.md5)) {
@@ -185,9 +185,9 @@ public class Scanner implements AutoCloseable {
                 if (item.createDate != null) {
                     Files.setLastModifiedTime(destDir, FileTime.fromMillis(item.createDate.getTime()));
                 }
-                System.out.println("MD5 not equals: " + sourceFile + " -> " + destFile + "(" + destMD5ErrorDir + ")");
+                logger.info("MD5 not equals: " + sourceFile + " -> " + destFile + "(" + destMD5ErrorDir + ")");
 
-                System.out.println(((System.currentTimeMillis() - startProcessing) / 1000) + "s Checked: " + totalCount + " Size:" + (totalSize >> 20) + "M Files: " + sourceFile + " -> " + destFile);
+                logger.info(((System.currentTimeMillis() - startProcessing) / 1000) + "s Checked: " + totalCount + " Size:" + (totalSize >> 20) + "M Files: " + sourceFile + " -> " + destFile);
             }
         }
         return destFile;
@@ -201,27 +201,31 @@ public class Scanner implements AutoCloseable {
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
-            System.out.println(old.path + " -> " + old.folder);
-            System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + ++totalCount);
+            logger.info(old.path + " -> " + old.folder);
+            logger.info("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Scanned: " + ++totalCount);
         });
     }
 
     public void deleteSource() throws SQLException {
-        dao.list(" where destination is not null", item -> {
-
+        dao.list(" where destination is not null and deleted <> true", item -> {
             if (Files.exists(Path.of(item.path))) {
                 if (Files.exists(Path.of(item.destination))) {
                     if (Utils.equalsFiles(item.path, item.destination)) {
-                        System.out.println("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Delete: " + item.path);
-// delete record
-// delete file
-
+                        logger.info("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Delete: " + item.path);
+                        try {
+                            Files.delete(Path.of(item.path));
+                            dao.markDeleted(item.path);
+                        } catch (IOException e) {
+                            logger.error("Can't delete file: " + item.path, e);
+                        }
                     }
                 } else {
-                    // error
+                    logger.info("Destination not found: {}", item);
+                    throw new RuntimeException("Destination not found: " + item.destination);
                 }
             } else {
-                // skip row
+                logger.info("Mark deleted not existed file: {}", item.path);
+                dao.markDeleted(item.path);
             }
         });
     }

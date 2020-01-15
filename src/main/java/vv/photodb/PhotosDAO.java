@@ -1,6 +1,5 @@
 package vv.photodb;
 
-import java.nio.file.Path;
 import java.sql.*;
 import java.text.ParseException;
 import java.util.Date;
@@ -136,4 +135,11 @@ public class PhotosDAO implements AutoCloseable {
     }
 
 
+    public void markDeleted(String path) {
+        try {
+            getConnection().createStatement().executeUpdate("update photos set deleted=true where path='" + escape(path) + "'");
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }
