@@ -142,9 +142,9 @@ public class Scanner implements AutoCloseable {
             String commentVal = item.comment != null ? "_" + item.comment : "";
             String equipmentVal = item.equipment != null && !item.equipment.equals("unknown") ? "_" + item.equipment : "";
 
-            destSubDir = Path.of( year, month + "_" + day + equipmentVal + commentVal);
+            destSubDir = Path.of(year, month + "_" + day + equipmentVal + commentVal);
         } else {
-            destSubDir = Path.of( "Unsorted", item.folder);
+            destSubDir = Path.of("Unsorted", item.folder);
         }
 
         destDir = destRootDir.resolve(destSubDir);
@@ -206,25 +206,26 @@ public class Scanner implements AutoCloseable {
         });
     }
 
-    public void deleteSource() throws SQLException {
-        dao.list(" where destination is not null and deleted <> true", item -> {
+    public void deleteSource(String source) throws SQLException {
+        dao.list(" where path like '" + source + "%' and destination is not null and deleted <> true", item -> {
             if (Files.exists(Path.of(item.path))) {
                 if (Files.exists(Path.of(item.destination))) {
                     if (Utils.equalsFiles(item.path, item.destination)) {
-                        logger.info("Time: " + ((System.currentTimeMillis() - startProcessing) / 1000) + "s Delete: " + item.path);
                         try {
                             Files.delete(Path.of(item.path));
                             dao.markDeleted(item.path);
+                            logger.info("Time: {}s Delete: {} {}", ((System.currentTimeMillis() - startProcessing) / 1000), item.path, item);
                         } catch (IOException e) {
                             logger.error("Can't delete file: " + item.path, e);
                         }
+                    } else {
+                        logger.warn("Files is not equal: {}", item);
                     }
                 } else {
-                    logger.info("Destination not found: {}", item);
-                    throw new RuntimeException("Destination not found: " + item.destination);
+                    logger.error("Destination not found: {}", item);
                 }
             } else {
-                logger.info("Mark deleted not existed file: {}", item.path);
+                logger.warn("Mark deleted not existed file: {}", item.path);
                 dao.markDeleted(item.path);
             }
         });
