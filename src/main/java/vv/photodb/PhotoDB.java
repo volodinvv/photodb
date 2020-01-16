@@ -48,6 +48,11 @@ public class PhotoDB {
                 case "deleteSource":
                     scanner.deleteSource(PhotoDB.args.source);
                     break;
+                case "deleteEmptyDirs":
+                    scanner.deleteEmptyDirs(PhotoDB.args.source);
+                    break;
+
+
                 default:
                     System.out.println("Unknown command: " + PhotoDB.args.cmd);
             }

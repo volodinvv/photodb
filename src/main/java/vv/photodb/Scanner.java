@@ -2,6 +2,7 @@ package vv.photodb;
 
 import com.drew.imaging.ImageMetadataReader;
 import com.drew.metadata.exif.ExifIFD0Directory;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +11,7 @@ import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -22,6 +24,9 @@ public class Scanner implements AutoCloseable {
 
     private static final Set<Object> SKIP_EXT = Set.of("index", "txt", "ini",
             "info", "db", "amr", "ctg", "ithmb", "nri", "scn", "thm", "xml", "json");
+
+    private static final Set<Object> EMPTY_EXT = Set.of("index", "txt", "ini",
+            "info", "db", "ctg", "ithmb", "nri", "scn", "thm", "xml", "json");
 
     public Long totalSize = 0L;
     public Long totalCount = 0L;
@@ -231,5 +236,38 @@ public class Scanner implements AutoCloseable {
         });
     }
 
+    public void deleteEmptyDirs(String source) throws IOException {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(Path.of(source))) {
+            for (Path entry : stream) {
+                if (Files.isDirectory(entry)) {
+                    deleteEmptyDirs(entry);
+                }
+            }
+        }
+    }
 
+    private void deleteEmptyDirs(Path path) throws IOException {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
+            for (Path entry : stream) {
+                if (Files.isDirectory(entry)) {
+                    deleteEmptyDirs(entry);
+                }
+            }
+        }
+
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
+            for (Path entry : stream) {
+                if (Files.isDirectory(entry)) {
+                    return;
+                } else {
+                    String ext = Utils.getFileExtension(entry.toString());
+                    if (ext == null || !EMPTY_EXT.contains(ext)) {
+                        return;
+                    }
+                }
+            }
+        }
+        logger.info("Delete empty dir: {}", path);
+        FileUtils.forceDelete(path.toFile());
+    }
 }
