@@ -32,5 +32,5 @@ CREATE VIEW photos_for_copy
 as select md5 , size, min("path") path,  min("ext") ext,  min(created) created, max(equipment) equipment,
   max(comment) comment, max(folder) folder,
 case when length(max(name))<length(min(name)) then max(name) else min(name) end name, max (destination) destination 
-from photos p where deleted <> true  GROUP by md5,"size";
+from photos p where deleted <> true  GROUP by md5,"size", name;
 
